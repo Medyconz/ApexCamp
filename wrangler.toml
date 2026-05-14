@@ -2,8 +2,12 @@ name = "apexcamp"
 main = "worker.js"
 compatibility_date = "2026-05-14"
 
-# Create a Workers KV namespace in Cloudflare and paste its id here.
-# The binding name must stay DB because worker.js uses env.DB.
+# This makes the HTML/CSS/JS files in the repo available to env.ASSETS.
+assets = { directory = ".", binding = "ASSETS" }
+
+# Create a Workers KV namespace in Cloudflare and bind it as DB.
+# Replace this id if you deploy with Wrangler. If you connect through the
+# Cloudflare dashboard, add the DB binding in Worker settings instead.
 [[kv_namespaces]]
 binding = "DB"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
