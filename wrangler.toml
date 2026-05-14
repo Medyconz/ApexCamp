@@ -5,9 +5,6 @@ compatibility_date = "2026-05-14"
 # This makes the HTML/CSS/JS files in the repo available to env.ASSETS.
 assets = { directory = ".", binding = "ASSETS" }
 
-# Create a Workers KV namespace in Cloudflare and bind it as DB.
-# Replace this id if you deploy with Wrangler. If you connect through the
-# Cloudflare dashboard, add the DB binding in Worker settings instead.
-[[kv_namespaces]]
-binding = "DB"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+# After connecting this repo in Cloudflare, add these in the Worker dashboard:
+# 1. Workers KV binding named DB
+# 2. Secret named ADMIN_TOKEN
