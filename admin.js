@@ -20,7 +20,7 @@ const weeksForm=document.querySelector('#weeks-form');
 const productsForm=document.querySelector('#products-form');
 const addWeekButton=document.querySelector('#add-week');
 const addProductButton=document.querySelector('#add-product');
-const tableConfig={registrations:['id','created_at','status','camp_weeks','parent_guardian_name','parent_guardian_email','parent_guardian_phone','emergency_contact_name','emergency_contact_mobile','student_1_name','student_1_date_of_birth','student_1_has_medical_condition','student_1_medical_condition_details'],counsellors:['id','created_at','status','name','email','phone','age','availability','experience','motivation'],instructors:['id','created_at','status','name','email','phone','specialty','availability','experience','motivation'],contacts:['id','created_at','status','name','email','phone','message']};
+const tableConfig={registrations:['id','created_at','status','camp_weeks','child_count','total_weeks','estimated_total_kd','parent_guardian_name','parent_guardian_email','parent_guardian_phone','emergency_contact_name','emergency_contact_mobile','student_1_name','student_1_date_of_birth','student_1_has_medical_condition','student_1_medical_condition_details','student_2_name','student_2_date_of_birth','student_2_has_medical_condition','student_2_medical_condition_details','student_3_name','student_3_date_of_birth','student_3_has_medical_condition','student_3_medical_condition_details'],counsellors:['id','created_at','status','name','email','phone','age','availability','experience','motivation'],instructors:['id','created_at','status','name','email','phone','specialty','availability','experience','motivation'],contacts:['id','created_at','status','name','email','phone','message']};
 let currentType='registrations';
 let rows=[];
 let siteConfig={camp_weeks:[],merch_products:[]};
@@ -87,5 +87,5 @@ function getToken(){return localStorage.getItem(tokenKey)||tokenInput.value.trim
 function showAdminError(error){loginForm.hidden=false;dashboard.hidden=true;logoutButton.hidden=true;loginMessage.textContent=`${error.message} Check your admin token or backend deployment.`}
 function formatColumn(column){return column.replaceAll('_',' ')}
 function formatValue(value){if(value===null||value===undefined||value==='')return '';if(Array.isArray(value))return escapeHtml(value.join(', '));return escapeHtml(String(value))}
-function escapeHtml(value){return String(value||'').replace(/[&<>\"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[char]))}
+function escapeHtml(value){return String(value||'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
 function escapeAttr(value){return escapeHtml(value).replaceAll('`','&#096;')}
