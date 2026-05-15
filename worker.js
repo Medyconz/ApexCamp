@@ -1,4 +1,22 @@
 const PREFIX = 'apexcampwebsite:';
+const CONFIG_KEY = `${PREFIX}site-config`;
+const DEFAULT_SITE_CONFIG = {
+  camp_weeks: [
+    { id: 'week-1', label: 'Week 1: June 14-18, 2026', active: true },
+    { id: 'week-2', label: 'Week 2: June 21-25, 2026', active: true },
+    { id: 'week-3', label: 'Week 3: June 28-July 2, 2026', active: true },
+    { id: 'week-4', label: 'Week 4: July 5-9, 2026', active: true },
+    { id: 'week-5', label: 'Week 5: July 12-16, 2026', active: true },
+    { id: 'week-6', label: 'Week 6: July 19-23, 2026', active: true },
+    { id: 'week-7', label: 'Week 7: July 26-30, 2026', active: true },
+    { id: 'week-8', label: 'Week 8: August 2-6, 2026', active: true },
+    { id: 'week-9', label: 'Week 9: August 9-13, 2026', active: true }
+  ],
+  merch_products: [
+    { id: 'apex-shirt', name: 'Apex Camp T-Shirt', price: '8 KWD', image_url: 'Profile%20Picture%201.jpg.jpeg', description: 'Soft camp tee with Apex colors.', active: true },
+    { id: 'apex-cap', name: 'Apex Camp Cap', price: '5 KWD', image_url: 'Profile%20Picture%201.jpg.jpeg', description: 'Easy everyday cap for camp days.', active: true }
+  ]
+};
 const TABLES = {
   registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'camp_weeks', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details'] },
   counsellors: { label: 'Counsellors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'age', 'availability', 'experience', 'motivation'] },
@@ -22,6 +40,7 @@ export default {
 async function handleApi(request, env, url) {
   assertDb(env);
 
+  if (request.method === 'GET' && url.pathname === '/api/site-config') return json(await getSiteConfig(env));
   if (request.method === 'POST' && url.pathname === '/api/register') return saveRecord(request, env, 'registrations');
   if (request.method === 'POST' && url.pathname === '/api/apply-counsellor') return saveRecord(request, env, 'counsellors');
   if (request.method === 'POST' && url.pathname === '/api/apply-instructor') return saveRecord(request, env, 'instructors');
@@ -33,6 +52,8 @@ async function handleApi(request, env, url) {
     if (request.method === 'GET' && url.pathname === '/api/admin/submissions') return adminSubmissions(env, url);
     if (request.method === 'PATCH' && url.pathname === '/api/admin/submissions') return updateStatus(request, env);
     if (request.method === 'GET' && url.pathname === '/api/admin/export') return exportCsv(env, url);
+    if (request.method === 'GET' && url.pathname === '/api/admin/site-config') return json(await getSiteConfig(env));
+    if (request.method === 'PUT' && url.pathname === '/api/admin/site-config') return saveSiteConfig(request, env);
   }
 
   return json({ error: 'API route not found.' }, 404);
@@ -65,36 +86,37 @@ function mapPublicRecord(type, body) {
     };
   }
   if (type === 'counsellors') {
-    return {
-      name: requiredText(body.name, 'Full name'),
-      email: requiredEmail(body.email),
-      phone: requiredText(body.phone, 'Phone'),
-      age: requiredNumber(body.age, 'Age'),
-      availability: requiredText(body.availability, 'Availability'),
-      experience: requiredText(body.experience, 'Experience'),
-      motivation: requiredText(body.motivation, 'Motivation')
-    };
+    return { name: requiredText(body.name, 'Full name'), email: requiredEmail(body.email), phone: requiredText(body.phone, 'Phone'), age: requiredNumber(body.age, 'Age'), availability: requiredText(body.availability, 'Availability'), experience: requiredText(body.experience, 'Experience'), motivation: requiredText(body.motivation, 'Motivation') };
   }
   if (type === 'instructors') {
-    return {
-      name: requiredText(body.name, 'Full name'),
-      email: requiredEmail(body.email),
-      phone: requiredText(body.phone, 'Phone'),
-      specialty: requiredText(body.specialty, 'Specialty'),
-      availability: requiredText(body.availability, 'Availability'),
-      experience: requiredText(body.experience, 'Experience'),
-      motivation: requiredText(body.motivation, 'Motivation')
-    };
+    return { name: requiredText(body.name, 'Full name'), email: requiredEmail(body.email), phone: requiredText(body.phone, 'Phone'), specialty: requiredText(body.specialty, 'Specialty'), availability: requiredText(body.availability, 'Availability'), experience: requiredText(body.experience, 'Experience'), motivation: requiredText(body.motivation, 'Motivation') };
   }
   if (type === 'contacts') {
-    return {
-      name: requiredText(body.name, 'Name'),
-      email: requiredEmail(body.email),
-      phone: optionalText(body.phone),
-      message: requiredText(body.message, 'Message')
-    };
+    return { name: requiredText(body.name, 'Name'), email: requiredEmail(body.email), phone: optionalText(body.phone), message: requiredText(body.message, 'Message') };
   }
   fail('Unknown form type.', 400);
+}
+
+async function getSiteConfig(env) {
+  const stored = await env.DB.get(CONFIG_KEY, 'json');
+  return normalizeSiteConfig(stored || DEFAULT_SITE_CONFIG);
+}
+
+async function saveSiteConfig(request, env) {
+  const body = await request.json();
+  const config = normalizeSiteConfig(body);
+  if (!config.camp_weeks.some((week) => week.active)) fail('At least one camp week must be active.', 400);
+  await env.DB.put(CONFIG_KEY, JSON.stringify(config));
+  return json({ ok: true, config, message: 'Site settings saved.' });
+}
+
+function normalizeSiteConfig(input) {
+  const campWeeks = Array.isArray(input?.camp_weeks) ? input.camp_weeks : DEFAULT_SITE_CONFIG.camp_weeks;
+  const merchProducts = Array.isArray(input?.merch_products) ? input.merch_products : DEFAULT_SITE_CONFIG.merch_products;
+  return {
+    camp_weeks: campWeeks.map((week, index) => ({ id: slug(week.id || week.label || `week-${index + 1}`), label: requiredConfigText(week.label, `Week ${index + 1}`), active: week.active !== false })),
+    merch_products: merchProducts.map((product, index) => ({ id: slug(product.id || product.name || `product-${index + 1}`), name: requiredConfigText(product.name, `Product ${index + 1}`), price: optionalText(product.price), image_url: optionalText(product.image_url), description: optionalText(product.description), buy_url: optionalText(product.buy_url), active: product.active !== false }))
+  };
 }
 
 async function adminSummary(env) {
@@ -164,69 +186,18 @@ function requireAdmin(request, env) {
   if (token !== env.ADMIN_TOKEN) fail('Invalid admin token.', 401);
 }
 
-function assertDb(env) {
-  if (!env.DB) fail('Workers KV binding DB is not configured.', 500);
-}
-
-function getConfig(type) {
-  const config = TABLES[type];
-  if (!config) fail('Unknown database table.', 400);
-  return config;
-}
-
-function storageKey(type, id) {
-  return `${PREFIX}${type}:${id}`;
-}
-
-function pick(fields, row) {
-  return Object.fromEntries(fields.map((field) => [field, row[field] ?? '']));
-}
-
-function requiredText(value, label) {
-  const text = optionalText(value);
-  if (!text) fail(`${label} is required.`, 400);
-  return text;
-}
-
-function optionalText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function requiredEmail(value) {
-  const email = requiredText(value, 'Email');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('A valid email is required.', 400);
-  return email;
-}
-
-function requiredNumber(value, label) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) fail(`${label} must be a number.`, 400);
-  return number;
-}
-
-function asArray(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  if (value) return [String(value).trim()].filter(Boolean);
-  return [];
-}
-
-function requiredArray(value, label) {
-  const values = asArray(value);
-  if (!values.length) fail(`${label} requires at least one selection.`, 400);
-  return values;
-}
-
-function csvCell(value) {
-  const text = Array.isArray(value) ? value.join('; ') : String(value ?? '');
-  return `"${text.replaceAll('"', '""')}"`;
-}
-
-function fail(message, status) {
-  const error = new Error(message);
-  error.status = status;
-  throw error;
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-}
+function assertDb(env) { if (!env.DB) fail('Workers KV binding DB is not configured.', 500); }
+function getConfig(type) { const config = TABLES[type]; if (!config) fail('Unknown database table.', 400); return config; }
+function storageKey(type, id) { return `${PREFIX}${type}:${id}`; }
+function pick(fields, row) { return Object.fromEntries(fields.map((field) => [field, row[field] ?? ''])); }
+function requiredText(value, label) { const text = optionalText(value); if (!text) fail(`${label} is required.`, 400); return text; }
+function requiredConfigText(value, fallback) { return optionalText(value) || fallback; }
+function optionalText(value) { return typeof value === 'string' ? value.trim() : ''; }
+function requiredEmail(value) { const email = requiredText(value, 'Email'); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('A valid email is required.', 400); return email; }
+function requiredNumber(value, label) { const number = Number(value); if (!Number.isFinite(number)) fail(`${label} must be a number.`, 400); return number; }
+function asArray(value) { if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean); if (value) return [String(value).trim()].filter(Boolean); return []; }
+function requiredArray(value, label) { const values = asArray(value); if (!values.length) fail(`${label} requires at least one selection.`, 400); return values; }
+function csvCell(value) { const text = Array.isArray(value) ? value.join('; ') : String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
+function slug(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `item-${Date.now()}`; }
+function fail(message, status) { const error = new Error(message); error.status = status; throw error; }
+function json(data, status = 200) { return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } }); }
