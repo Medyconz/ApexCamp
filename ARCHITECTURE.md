@@ -46,7 +46,7 @@ Do not commit the actual `ADMIN_TOKEN`. It must be set as a Worker secret in Clo
 
 Public pages:
 
-- `index.html`: homepage and hero. Currently wired to show `assets/apex-camp-home.mp4` as the hero video.
+- `index.html`: homepage and hero. Currently wired to show the uploaded WhatsApp video first, then `assets/apex-camp-home.mp4` as a fallback.
 - `activities.html`: overview of 3D printing, aquatics, Karv Ski Block, indoor football, gymnastics, cooking, treasure hunt, music, arts and crafts.
 - `register.html`: camp registration form with dynamic camp weeks, child count, student details, and price estimate.
 - `merch.html`: public Apex Camp merch page, populated from site config.
@@ -65,7 +65,8 @@ Shared assets and styling:
 - `script.js`: public client-side behavior, dynamic camp weeks, merch rendering, registration price estimate, form submission.
 - `admin.js`: admin dashboard behavior, login token storage, records table, status updates, date editor, merch editor, image upload/compression.
 - `Profile Picture 1.jpg.jpeg`: Apex logo used throughout the site.
-- `assets/apex-camp-home.mp4`: intended homepage hero video path.
+- `assets/WhatsApp Video 2026-05-15 at 13.15.58.mp4`: uploaded homepage hero video path.
+- `assets/apex-camp-home.mp4`: cleaner homepage video fallback path.
 
 Backend:
 
@@ -76,25 +77,15 @@ Backend:
 
 ## Important Current Asset Note
 
-The homepage is already coded to load:
+The homepage video now tries these MP4 sources in order:
 
 ```html
+assets/WhatsApp%20Video%202026-05-15%20at%2013.15.58.mp4
+WhatsApp%20Video%202026-05-15%20at%2013.15.58.mp4
 assets/apex-camp-home.mp4
 ```
 
-The video was copied locally to:
-
-```text
-C:\Users\Asus\Documents\New project\assets\apex-camp-home.mp4
-```
-
-However, because the GitHub connector cannot reliably upload binary MP4 files, the MP4 may still need to be manually uploaded to GitHub at exactly:
-
-```text
-assets/apex-camp-home.mp4
-```
-
-If the homepage video does not appear live, check that this file exists in the GitHub repo and Cloudflare has redeployed.
+If the homepage video does not appear live, check that the uploaded MP4 exists in GitHub in either the `assets` folder or the repo root, and wait for Cloudflare to redeploy.
 
 ## Public API Routes
 
@@ -273,7 +264,7 @@ Because the local machine may not have `git` or `gh` available, prior work was m
 - Admin auth is a single shared token, not per-user accounts.
 - KV is simple and easy but not relational. For heavier reporting or complex queries, consider D1.
 - Merch image upload stores compressed data URLs in KV. This is easy but not ideal for large image libraries.
-- Homepage video file may need manual GitHub upload at `assets/apex-camp-home.mp4`.
+- Homepage video filename contains spaces. For long-term cleanliness, rename it to `assets/apex-camp-home.mp4` when convenient.
 
 ## Good Next Improvements
 
