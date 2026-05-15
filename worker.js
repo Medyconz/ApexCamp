@@ -1,5 +1,10 @@
 const PREFIX = 'apexcampwebsite:';
 const CONFIG_KEY = `${PREFIX}site-config`;
+const CAMP_PRICING = {
+  1: { 1: 185, 2: 333, 3: 471, 4: 592 },
+  2: { 1: 333, 2: 599, 3: 849, 4: 1065 },
+  3: { 1: 471, 2: 849, 3: 1202, 4: 1509 }
+};
 const DEFAULT_SITE_CONFIG = {
   camp_weeks: [
     { id: 'week-1', label: 'Week 1: June 14-18, 2026', active: true },
@@ -18,7 +23,7 @@ const DEFAULT_SITE_CONFIG = {
   ]
 };
 const TABLES = {
-  registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'camp_weeks', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details'] },
+  registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'camp_weeks', 'child_count', 'total_weeks', 'estimated_total_kd', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details', 'student_2_name', 'student_2_date_of_birth', 'student_2_has_medical_condition', 'student_2_medical_condition_details', 'student_3_name', 'student_3_date_of_birth', 'student_3_has_medical_condition', 'student_3_medical_condition_details'] },
   counsellors: { label: 'Counsellors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'age', 'availability', 'experience', 'motivation'] },
   instructors: { label: 'Instructors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'specialty', 'availability', 'experience', 'motivation'] },
   contacts: { label: 'Contact Messages', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'message'] }
@@ -72,17 +77,21 @@ async function saveRecord(request, env, type) {
 
 function mapPublicRecord(type, body) {
   if (type === 'registrations') {
+    const campWeeks = requiredArray(body.camp_weeks, 'Camp dates');
+    const childCount = requiredChildCount(body.child_count);
     return {
-      camp_weeks: requiredArray(body.camp_weeks, 'Camp dates'),
+      camp_weeks: campWeeks,
+      child_count: childCount,
+      total_weeks: campWeeks.length,
+      estimated_total_kd: estimateCampPrice(childCount, campWeeks.length),
       parent_guardian_name: requiredText(body.parent_guardian_name || body.guardian, 'Parent/Guardian Name'),
       parent_guardian_email: requiredEmail(body.parent_guardian_email || body.email),
       parent_guardian_phone: requiredText(body.parent_guardian_phone || body.phone, 'Parent/Guardian Phone'),
       emergency_contact_name: requiredText(body.emergency_contact_name, 'Name of Emergency Contact'),
       emergency_contact_mobile: requiredText(body.emergency_contact_mobile, 'Mobile Number'),
-      student_1_name: requiredText(body.student_1_name || body.camper, 'Student 1 Name'),
-      student_1_date_of_birth: requiredText(body.student_1_date_of_birth, 'Date of Birth'),
-      student_1_has_medical_condition: requiredText(body.student_1_has_medical_condition, 'Medical Condition'),
-      student_1_medical_condition_details: optionalText(body.student_1_medical_condition_details)
+      ...studentRecord(body, 1, true),
+      ...studentRecord(body, 2, childCount >= 2),
+      ...studentRecord(body, 3, childCount >= 3)
     };
   }
   if (type === 'counsellors') {
@@ -95,6 +104,16 @@ function mapPublicRecord(type, body) {
     return { name: requiredText(body.name, 'Name'), email: requiredEmail(body.email), phone: optionalText(body.phone), message: requiredText(body.message, 'Message') };
   }
   fail('Unknown form type.', 400);
+}
+
+function studentRecord(body, number, required) {
+  const prefix = `student_${number}`;
+  return {
+    [`${prefix}_name`]: required ? requiredText(body[`${prefix}_name`], `Student ${number} Name`) : optionalText(body[`${prefix}_name`]),
+    [`${prefix}_date_of_birth`]: required ? requiredText(body[`${prefix}_date_of_birth`], `Student ${number} Date of Birth`) : optionalText(body[`${prefix}_date_of_birth`]),
+    [`${prefix}_has_medical_condition`]: required ? requiredText(body[`${prefix}_has_medical_condition`], `Student ${number} Medical Condition`) : optionalText(body[`${prefix}_has_medical_condition`]),
+    [`${prefix}_medical_condition_details`]: optionalText(body[`${prefix}_medical_condition_details`])
+  };
 }
 
 async function getSiteConfig(env) {
@@ -195,6 +214,8 @@ function requiredConfigText(value, fallback) { return optionalText(value) || fal
 function optionalText(value) { return typeof value === 'string' ? value.trim() : ''; }
 function requiredEmail(value) { const email = requiredText(value, 'Email'); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('A valid email is required.', 400); return email; }
 function requiredNumber(value, label) { const number = Number(value); if (!Number.isFinite(number)) fail(`${label} must be a number.`, 400); return number; }
+function requiredChildCount(value) { const number = Number(value || 1); if (![1, 2, 3].includes(number)) fail('Number of children must be 1, 2, or 3.', 400); return number; }
+function estimateCampPrice(childCount, weekCount) { const price = CAMP_PRICING[childCount]?.[weekCount]; return price ? `${price} KD` : ''; }
 function asArray(value) { if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean); if (value) return [String(value).trim()].filter(Boolean); return []; }
 function requiredArray(value, label) { const values = asArray(value); if (!values.length) fail(`${label} requires at least one selection.`, 400); return values; }
 function csvCell(value) { const text = Array.isArray(value) ? value.join('; ') : String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
