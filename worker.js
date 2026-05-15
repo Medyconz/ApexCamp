@@ -1,6 +1,6 @@
 const PREFIX = 'apexcampwebsite:';
 const TABLES = {
-  registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details'] },
+  registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'camp_weeks', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details'] },
   counsellors: { label: 'Counsellors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'age', 'availability', 'experience', 'motivation'] },
   instructors: { label: 'Instructors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'specialty', 'availability', 'experience', 'motivation'] },
   contacts: { label: 'Contact Messages', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'message'] }
@@ -52,6 +52,7 @@ async function saveRecord(request, env, type) {
 function mapPublicRecord(type, body) {
   if (type === 'registrations') {
     return {
+      camp_weeks: requiredArray(body.camp_weeks, 'Camp dates'),
       parent_guardian_name: requiredText(body.parent_guardian_name || body.guardian, 'Parent/Guardian Name'),
       parent_guardian_email: requiredEmail(body.parent_guardian_email || body.email),
       parent_guardian_phone: requiredText(body.parent_guardian_phone || body.phone, 'Parent/Guardian Phone'),
@@ -201,6 +202,18 @@ function requiredNumber(value, label) {
   const number = Number(value);
   if (!Number.isFinite(number)) fail(`${label} must be a number.`, 400);
   return number;
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (value) return [String(value).trim()].filter(Boolean);
+  return [];
+}
+
+function requiredArray(value, label) {
+  const values = asArray(value);
+  if (!values.length) fail(`${label} requires at least one selection.`, 400);
+  return values;
 }
 
 function csvCell(value) {
