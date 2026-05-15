@@ -1,6 +1,6 @@
 const PREFIX = 'apexcampwebsite:';
 const TABLES = {
-  registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'guardian_name', 'camper_name', 'camper_age', 'email', 'phone', 'activities', 'notes'] },
+  registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details'] },
   counsellors: { label: 'Counsellors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'age', 'availability', 'experience', 'motivation'] },
   instructors: { label: 'Instructors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'specialty', 'availability', 'experience', 'motivation'] },
   contacts: { label: 'Contact Messages', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'message'] }
@@ -52,13 +52,15 @@ async function saveRecord(request, env, type) {
 function mapPublicRecord(type, body) {
   if (type === 'registrations') {
     return {
-      guardian_name: requiredText(body.guardian, 'Parent or guardian name'),
-      camper_name: requiredText(body.camper, 'Camper name'),
-      camper_age: requiredNumber(body.age, 'Camper age'),
-      email: requiredEmail(body.email),
-      phone: requiredText(body.phone, 'Phone'),
-      activities: asArray(body.activity),
-      notes: optionalText(body.notes)
+      parent_guardian_name: requiredText(body.parent_guardian_name || body.guardian, 'Parent/Guardian Name'),
+      parent_guardian_email: requiredEmail(body.parent_guardian_email || body.email),
+      parent_guardian_phone: requiredText(body.parent_guardian_phone || body.phone, 'Parent/Guardian Phone'),
+      emergency_contact_name: requiredText(body.emergency_contact_name, 'Name of Emergency Contact'),
+      emergency_contact_mobile: requiredText(body.emergency_contact_mobile, 'Mobile Number'),
+      student_1_name: requiredText(body.student_1_name || body.camper, 'Student 1 Name'),
+      student_1_date_of_birth: requiredText(body.student_1_date_of_birth, 'Date of Birth'),
+      student_1_has_medical_condition: requiredText(body.student_1_has_medical_condition, 'Medical Condition'),
+      student_1_medical_condition_details: optionalText(body.student_1_medical_condition_details)
     };
   }
   if (type === 'counsellors') {
@@ -199,12 +201,6 @@ function requiredNumber(value, label) {
   const number = Number(value);
   if (!Number.isFinite(number)) fail(`${label} must be a number.`, 400);
   return number;
-}
-
-function asArray(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  if (value) return [String(value).trim()].filter(Boolean);
-  return [];
 }
 
 function csvCell(value) {
