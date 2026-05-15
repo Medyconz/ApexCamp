@@ -5,6 +5,10 @@ compatibility_date = "2026-05-14"
 # This makes the HTML/CSS/JS files in the repo available to env.ASSETS.
 assets = { directory = ".", binding = "ASSETS" }
 
-# After connecting this repo in Cloudflare, add these in the Worker dashboard:
-# 1. Workers KV binding named DB
-# 2. Secret named ADMIN_TOKEN
+# Apex Camp database for registrations, applications, contact messages,
+# editable registration dates, and merch products.
+[[kv_namespaces]]
+binding = "DB"
+id = "a94018bdcb7143caaf496f6fd0e2cebe"
+
+# Add ADMIN_TOKEN as a Worker secret in the Cloudflare dashboard.
