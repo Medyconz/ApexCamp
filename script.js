@@ -1,4 +1,5 @@
 let siteConfigPromise;
+const campPricing={1:{1:185,2:333,3:471,4:592},2:{1:333,2:599,3:849,4:1065},3:{1:471,2:849,3:1202,4:1509}};
 
 function getSiteConfig(){
   if(!siteConfigPromise){
@@ -8,7 +9,7 @@ function getSiteConfig(){
 }
 
 function escapeHtml(value){
-  return String(value||'').replace(/[&<>\"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[char]));
+  return String(value||'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
 }
 
 async function renderCampWeeks(){
@@ -40,7 +41,49 @@ async function renderMerch(){
   }
 }
 
-renderCampWeeks();
+function initRegistrationTools(){
+  const form=document.querySelector('.camp-form[data-endpoint="/api/register"]');
+  if(!form)return;
+  const childSelect=form.querySelector('#child-count');
+  form.querySelector('[data-required-group="camp_weeks"]')?.addEventListener('change',()=>updateRegistrationPrice(form));
+  childSelect?.addEventListener('change',()=>{updateStudentSections(form);updateRegistrationPrice(form)});
+  updateStudentSections(form);
+  updateRegistrationPrice(form);
+}
+
+function updateStudentSections(form){
+  const count=Number(form.querySelector('#child-count')?.value||1);
+  form.querySelectorAll('.student-section').forEach((section)=>{
+    const studentNumber=Number(section.dataset.student||1);
+    const active=studentNumber<=count;
+    section.hidden=!active;
+    section.querySelectorAll('[data-required-when-active]').forEach((field)=>{field.required=active});
+  });
+}
+
+function updateRegistrationPrice(form){
+  const weekCount=form.querySelectorAll('input[name="camp_weeks"]:checked').length;
+  const childCount=Number(form.querySelector('#child-count')?.value||1);
+  const estimate=form.querySelector('#price-estimate');
+  const totalWeeks=form.querySelector('#total-weeks');
+  const estimatedTotal=form.querySelector('#estimated-total-kd');
+  if(totalWeeks)totalWeeks.value=String(weekCount);
+  if(estimatedTotal)estimatedTotal.value='';
+  if(!estimate)return;
+  if(!weekCount){
+    estimate.textContent='Choose camp dates to see the estimated total.';
+    return;
+  }
+  if(weekCount>4){
+    estimate.textContent=`${weekCount} weeks selected for ${childCount} ${childCount===1?'child':'children'}. The Apex Camp team will confirm pricing for 5 or more weeks.`;
+    return;
+  }
+  const price=campPricing[childCount]?.[weekCount];
+  if(estimatedTotal&&price)estimatedTotal.value=String(price);
+  estimate.textContent=`Estimated total: ${price} KD for ${childCount} ${childCount===1?'child':'children'} and ${weekCount} ${weekCount===1?'week':'weeks'}.`;
+}
+
+renderCampWeeks().then(initRegistrationTools);
 renderMerch();
 
 document.querySelectorAll('.camp-form').forEach((form)=>{
@@ -48,6 +91,7 @@ document.querySelectorAll('.camp-form').forEach((form)=>{
   form.addEventListener('submit',async(event)=>{
     if(!form.dataset.endpoint)return;
     event.preventDefault();
+    if(form.dataset.endpoint==='/api/register')updateRegistrationPrice(form);
     const missingGroup=[...form.querySelectorAll('[data-required-group]')].find((group)=>!group.querySelector('input[type="checkbox"]:checked'));
     if(missingGroup){
       const legend=missingGroup.querySelector('legend')?.textContent||'This section';
@@ -74,6 +118,10 @@ document.querySelectorAll('.camp-form').forEach((form)=>{
       const result=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(result.error||'The form could not be submitted.');
       form.reset();
+      if(form.dataset.endpoint==='/api/register'){
+        updateStudentSections(form);
+        updateRegistrationPrice(form);
+      }
       if(message)message.textContent=result.message||'Thank you. Your form was saved for the Apex Camp team.';
     }catch(error){
       if(message)message.textContent=error.message||'The backend is not reachable yet.';
