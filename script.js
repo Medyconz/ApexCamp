@@ -1,6 +1,14 @@
 let siteConfigPromise;
 let activeCampPricing={1:{1:185,2:333,3:471,4:592},2:{1:333,2:599,3:849,4:1065},3:{1:471,2:849,3:1202,4:1509}};
 
+function ensureEnhancementStyles(){
+  if(document.querySelector('link[href="enhancements.css"]'))return;
+  const link=document.createElement('link');
+  link.rel='stylesheet';
+  link.href='enhancements.css';
+  document.head.appendChild(link);
+}
+
 function getSiteConfig(){
   if(!siteConfigPromise){
     siteConfigPromise=fetch('/api/site-config').then((response)=>response.ok?response.json():Promise.reject(new Error('Site settings are not available.')));
@@ -163,6 +171,7 @@ function showRegistrationSummary(form,data,result){
 }
 
 async function initDynamicSite(){
+  ensureEnhancementStyles();
   initMobileNav();
   try{
     const config=await getSiteConfig();
