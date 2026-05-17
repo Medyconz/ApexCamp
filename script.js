@@ -1,5 +1,14 @@
 let siteConfigPromise;
 let activeCampPricing={1:{1:185,2:333,3:471,4:592},2:{1:333,2:599,3:849,4:1065},3:{1:471,2:849,3:1202,4:1509}};
+const socialLinks={
+  whatsapp:'https://wa.me/96597913191',
+  instagram:'https://www.instagram.com/apexcamp.co/',
+  tiktok:'https://www.tiktok.com/@apexcamp'
+};
+const campMedia={
+  activityImage:'https://raw.githubusercontent.com/Medyconz/ApexCamp/55c3735099d518a629ecef23a41eab51acfcb80a/assets/WhatsApp%20Image%202026-05-15%20at%2013.18.56.jpeg',
+  highlightVideo:'assets/apex-camp-home.mp4'
+};
 
 function ensureEnhancementStyles(){
   if(document.querySelector('link[href="enhancements.css"]'))return;
@@ -18,6 +27,10 @@ function getSiteConfig(){
 
 function escapeHtml(value){
   return String(value||'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+}
+
+function escapeAttr(value){
+  return escapeHtml(value).replaceAll('`','&#096;');
 }
 
 function initMobileNav(){
@@ -44,6 +57,31 @@ function initMobileNav(){
   });
 }
 
+function initSocialFloaters(){
+  if(document.body.classList.contains('admin-page')||document.querySelector('.social-floaters'))return;
+  const nav=document.createElement('nav');
+  nav.className='social-floaters';
+  nav.setAttribute('aria-label','Apex Camp social links');
+  nav.innerHTML=`<a class="social-floater whatsapp" href="${socialLinks.whatsapp}" target="_blank" rel="noopener" aria-label="Message Apex Camp on WhatsApp"><span aria-hidden="true">WA</span><b>WhatsApp</b></a><a class="social-floater instagram" href="${socialLinks.instagram}" target="_blank" rel="noopener" aria-label="Open Apex Camp Instagram"><span aria-hidden="true">IG</span><b>Instagram</b></a><a class="social-floater tiktok" href="${socialLinks.tiktok}" target="_blank" rel="noopener" aria-label="Open Apex Camp TikTok"><span aria-hidden="true">TT</span><b>TikTok</b></a>`;
+  document.body.appendChild(nav);
+}
+
+function renderSocialHighlights(){
+  if(document.body.classList.contains('admin-page')||document.querySelector('.social-highlight'))return;
+  const main=document.querySelector('main');
+  const footer=document.querySelector('footer');
+  if(!main)return;
+  const section=document.createElement('section');
+  section.className='section social-highlight';
+  section.setAttribute('aria-labelledby','social-highlight-title');
+  section.innerHTML=`<div class="social-highlight-heading"><div><p class="eyebrow">Apex Camp on social</p><h2 id="social-highlight-title">See the camp moments parents talk about.</h2><p>Follow Apex Camp Kuwait for activity photos, short videos, announcements, and day-by-day camp energy.</p></div><a class="button secondary" href="${socialLinks.whatsapp}" target="_blank" rel="noopener">Ask on WhatsApp</a></div><div class="social-grid"><a class="social-card social-card-video" href="${socialLinks.tiktok}" target="_blank" rel="noopener"><video muted loop playsinline preload="metadata" poster="Profile%20Picture%201.jpg.jpeg" aria-label="Apex Camp video preview"><source src="${campMedia.highlightVideo}" type="video/mp4"><source src="assets/WhatsApp%20Video%202026-05-15%20at%2013.15.58.mp4" type="video/mp4"></video><span>TikTok @apexcamp</span><strong>Videos from camp days</strong><small>Open TikTok for quick clips and activity highlights.</small></a><a class="social-card" href="${socialLinks.instagram}" target="_blank" rel="noopener"><img src="${campMedia.activityImage}" alt="Apex Camp activity photo preview"><span>Instagram @apexcamp.co</span><strong>Photos and reels</strong><small>Follow the Instagram page for images, reels, and updates.</small></a><a class="social-card social-card-contact" href="${socialLinks.whatsapp}" target="_blank" rel="noopener"><span>WhatsApp 97913191</span><strong>Questions before registering?</strong><small>Message the team directly from your phone or browser.</small></a></div>`;
+  if(footer)main.insertBefore(section,footer);else main.appendChild(section);
+  section.querySelectorAll('video').forEach((video)=>{
+    video.addEventListener('pointerenter',()=>video.play().catch(()=>{}));
+    video.addEventListener('focus',()=>video.play().catch(()=>{}));
+  });
+}
+
 function normalizePricing(pricing){
   if(!pricing)return activeCampPricing;
   if(Array.isArray(pricing)){
@@ -64,7 +102,7 @@ async function renderCampWeeks(config){
     config=config||await getSiteConfig();
     const weeks=(config.camp_weeks||[]).filter((week)=>week.active!==false);
     if(!weeks.length)return;
-    target.innerHTML=weeks.map((week)=>`<label class="choice"><input type="checkbox" name="camp_weeks" value="${escapeHtml(week.label)}"> ${escapeHtml(week.label)}</label>`).join('');
+    target.innerHTML=weeks.map((week)=>`<label class="choice"><input type="checkbox" name="camp_weeks" value="${escapeAttr(week.label)}"> ${escapeHtml(week.label)}</label>`).join('');
   }catch(error){
     console.warn(error);
   }
@@ -106,7 +144,7 @@ async function renderMerch(config){
       target.innerHTML='<article><h2>Merch coming soon</h2><p>Apex Camp products will appear here once they are added in the admin dashboard.</p></article>';
       return;
     }
-    target.innerHTML=products.map((product)=>`<article class="merch-card">${product.image_url?`<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`:''}<div><h2>${escapeHtml(product.name)}</h2>${product.price?`<strong>${escapeHtml(product.price)}</strong>`:''}${product.description?`<p>${escapeHtml(product.description)}</p>`:''}${product.buy_url?`<a class="button" href="${escapeHtml(product.buy_url)}">Buy Now</a>`:''}</div></article>`).join('');
+    target.innerHTML=products.map((product)=>`<article class="merch-card">${product.image_url?`<img src="${escapeAttr(product.image_url)}" alt="${escapeAttr(product.name)}">`:''}<div><h2>${escapeHtml(product.name)}</h2>${product.price?`<strong>${escapeHtml(product.price)}</strong>`:''}${product.description?`<p>${escapeHtml(product.description)}</p>`:''}${product.buy_url?`<a class="button" href="${escapeAttr(product.buy_url)}">Buy Now</a>`:''}</div></article>`).join('');
   }catch(error){
     target.innerHTML='<article><h2>Merch loading soon</h2><p>Please refresh in a moment.</p></article>';
   }
@@ -195,6 +233,8 @@ async function formDataToJson(form){
 async function initDynamicSite(){
   ensureEnhancementStyles();
   initMobileNav();
+  initSocialFloaters();
+  renderSocialHighlights();
   try{
     const config=await getSiteConfig();
     await renderCampWeeks(config);
