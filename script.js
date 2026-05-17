@@ -170,6 +170,28 @@ function showRegistrationSummary(form,data,result){
   target.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+function fileToUpload(file){
+  return new Promise((resolve,reject)=>{
+    if(!file||!file.name||!file.size){resolve('');return;}
+    if(file.size>4*1024*1024){reject(new Error(`${file.name} must be smaller than 4 MB.`));return;}
+    const reader=new FileReader();
+    reader.onload=()=>resolve({name:file.name,type:file.type||'application/octet-stream',size:file.size,data_url:reader.result});
+    reader.onerror=()=>reject(new Error(`Could not read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function formDataToJson(form){
+  const data={};
+  for(const [key,value] of new FormData(form).entries()){
+    const prepared=value instanceof File?await fileToUpload(value):value;
+    if(prepared==='')continue;
+    if(data[key]){data[key]=Array.isArray(data[key])?data[key]:[data[key]];data[key].push(prepared)}
+    else data[key]=prepared;
+  }
+  return data;
+}
+
 async function initDynamicSite(){
   ensureEnhancementStyles();
   initMobileNav();
@@ -211,12 +233,8 @@ document.querySelectorAll('.camp-form').forEach((form)=>{
     const oldLabel=button?button.textContent:'';
     if(button){button.disabled=true;button.textContent='Submitting...'}
     if(message)message.textContent='Sending your form...';
-    const data={};
-    new FormData(form).forEach((value,key)=>{
-      if(data[key]){data[key]=Array.isArray(data[key])?data[key]:[data[key]];data[key].push(value)}
-      else data[key]=value;
-    });
     try{
+      const data=await formDataToJson(form);
       const response=await fetch(form.dataset.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(data)});
       const result=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(result.error||'The form could not be submitted.');
