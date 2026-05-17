@@ -1,12 +1,13 @@
 const tokenKey = 'apexAdminToken';
 const auditKey = 'apexAdminAuditTrail';
+const whatsappHistoryKey = 'apexWhatsAppWebHistory';
 const resources = [
   { key: 'dashboard', label: 'Dashboard', panel: 'dashboard', hint: 'Overview', keywords: ['home', 'overview'] },
   { key: 'records', label: 'Submissions', panel: 'records', hint: 'Registrations and messages', keywords: ['database', 'registrations', 'contacts', 'applications'] },
   { key: 'dates', label: 'Registration Dates', panel: 'dates', hint: 'Camp weeks', keywords: ['weeks', 'dates', 'calendar'] },
   { key: 'pricing', label: 'Pricing & Payment', panel: 'pricing', hint: 'Prices and payment', keywords: ['payment', 'price', 'kd'] },
   { key: 'merch', label: 'Merch Products', panel: 'merch', hint: 'Products', keywords: ['shop', 'products', 'catalog'] },
-  { key: 'whatsapp', label: 'WhatsApp Business', panel: 'whatsapp', hint: 'Send and receive WhatsApp messages', keywords: ['whatsapp', 'messages', 'business api'] },
+  { key: 'whatsapp', label: 'WhatsApp Web', panel: 'whatsapp', hint: 'Open chats in WhatsApp Web', keywords: ['whatsapp', 'messages', 'business', 'web'] },
   { key: 'audit', label: 'Audit Trail', panel: 'audit', hint: 'Actions', keywords: ['log', 'history', 'actions'] }
 ];
 const statusList = ['new', 'reviewed', 'contacted', 'accepted', 'archived'];
@@ -67,20 +68,12 @@ const auditList = document.querySelector('#audit-list');
 const auditClearButton = document.querySelector('#audit-clear');
 const mobileAdminToggle = document.querySelector('#mobile-admin-toggle');
 const adminSidebar = document.querySelector('#admin-sidebar');
-const whatsappSettingsForm = document.querySelector('#whatsapp-settings-form');
-const whatsappSendForm = document.querySelector('#whatsapp-send-form');
-const whatsappPhoneId = document.querySelector('#whatsapp-phone-id');
-const whatsappVersion = document.querySelector('#whatsapp-version');
-const whatsappToken = document.querySelector('#whatsapp-token');
-const whatsappVerifyToken = document.querySelector('#whatsapp-verify-token');
-const whatsappWebhookUrl = document.querySelector('#whatsapp-webhook-url');
-const whatsappSettingsMessage = document.querySelector('#whatsapp-settings-message');
-const whatsappSendMessage = document.querySelector('#whatsapp-send-message');
+const whatsappWebForm = document.querySelector('#whatsapp-web-form');
 const whatsappTo = document.querySelector('#whatsapp-to');
 const whatsappMessage = document.querySelector('#whatsapp-message');
-const whatsappPreviewUrl = document.querySelector('#whatsapp-preview-url');
-const whatsappRefresh = document.querySelector('#whatsapp-refresh');
-const whatsappThread = document.querySelector('#whatsapp-thread');
+const whatsappMessageStatus = document.querySelector('#whatsapp-message-status');
+const whatsappHistory = document.querySelector('#whatsapp-history');
+const whatsappHistoryClear = document.querySelector('#whatsapp-history-clear');
 let currentPanel = 'dashboard';
 let currentType = 'registrations';
 let rows = [];
@@ -92,7 +85,7 @@ let siteConfig = { camp_weeks: [], camp_pricing: [], payment_settings: {}, merch
 renderResourceNav();
 renderCommandResults('');
 renderAuditTrail();
-setWebhookUrl();
+renderWhatsAppHistory();
 
 if (loginForm) {
   const savedToken = localStorage.getItem(tokenKey);
@@ -157,9 +150,14 @@ pricingForm?.addEventListener('submit', async (event) => {
   siteConfig.payment_settings = collectPaymentSettings();
   await saveSiteConfig('Pricing and payment saved.', 'site.edit_pricing');
 });
-whatsappSettingsForm?.addEventListener('submit', saveWhatsAppSettings);
-whatsappSendForm?.addEventListener('submit', sendWhatsAppMessage);
-whatsappRefresh?.addEventListener('click', () => loadWhatsApp(true));
+whatsappWebForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  openWhatsAppChat(whatsappTo.value, whatsappMessage.value, 'Manual chat');
+});
+whatsappHistoryClear?.addEventListener('click', () => {
+  localStorage.removeItem(whatsappHistoryKey);
+  renderWhatsAppHistory();
+});
 commandOpen?.addEventListener('click', openCommandPalette);
 commandClose?.addEventListener('click', closeCommandPalette);
 commandDialog?.addEventListener('click', (event) => { if (event.target === commandDialog) closeCommandPalette(); });
@@ -198,14 +196,14 @@ function showPanel(name) {
   syncResourceNav();
   if (name === 'records' && !rows.length) loadRows();
   if (name === 'audit') renderAuditTrail();
-  if (name === 'whatsapp') loadWhatsApp(false);
+  if (name === 'whatsapp') renderWhatsAppHistory();
 }
 async function openDashboard() {
   loginForm.hidden = true;
   dashboard.hidden = false;
   logoutButton.hidden = false;
   await loadAll();
-  await Promise.all([loadSiteConfig(), loadWhatsApp(false)]);
+  await loadSiteConfig();
   showPanel(currentPanel || 'dashboard');
 }
 async function loadAll() { await Promise.all([loadSummary(), loadRows()]); }
@@ -268,13 +266,14 @@ function renderTable() {
   const pageRows = visibleRows.slice((page - 1) * perPage, page * perPage);
   if (filterPanel) filterPanel.hidden = currentType !== 'registrations';
   tableHead.innerHTML = `<tr><th><input type="checkbox" id="select-page" aria-label="Select visible rows"></th>${columns.map((column) => `<th>${formatColumn(column)}</th>`).join('')}<th>Actions</th></tr>`;
-  tableBody.innerHTML = pageRows.map((row) => `<tr><td><input type="checkbox" data-select-row="${escapeAttr(row.id)}" ${selectedIds.has(String(row.id)) ? 'checked' : ''} aria-label="Select record ${escapeAttr(row.id)}"></td>${columns.map((column, index) => `<td>${index === 0 ? `<button class="row-link" type="button" data-detail="${escapeAttr(row.id)}">${formatValue(row[column])}</button>` : formatValue(row[column])}</td>`).join('')}<td><div class="admin-table-actions"><select data-id="${escapeAttr(row.id)}" aria-label="Update status for record ${escapeAttr(row.id)}">${statusList.map((status) => `<option value="${status}" ${row.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select><button class="admin-ghost-button danger-button" type="button" data-delete-row="${escapeAttr(row.id)}">Delete</button></div></td></tr>`).join('');
+  tableBody.innerHTML = pageRows.map((row) => `<tr><td><input type="checkbox" data-select-row="${escapeAttr(row.id)}" ${selectedIds.has(String(row.id)) ? 'checked' : ''} aria-label="Select record ${escapeAttr(row.id)}"></td>${columns.map((column, index) => `<td>${index === 0 ? `<button class="row-link" type="button" data-detail="${escapeAttr(row.id)}">${formatValue(row[column])}</button>` : formatValue(row[column])}</td>`).join('')}<td><div class="admin-table-actions"><select data-id="${escapeAttr(row.id)}" aria-label="Update status for record ${escapeAttr(row.id)}">${statusList.map((status) => `<option value="${status}" ${row.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select>${recordPhone(row) ? `<button class="admin-ghost-button" type="button" data-whatsapp-row="${escapeAttr(row.id)}">WhatsApp</button>` : ''}<button class="admin-ghost-button danger-button" type="button" data-delete-row="${escapeAttr(row.id)}">Delete</button></div></td></tr>`).join('');
   tableBody.querySelectorAll('[data-select-row]').forEach((checkbox) => checkbox.addEventListener('change', () => {
     if (checkbox.checked) selectedIds.add(String(checkbox.dataset.selectRow)); else selectedIds.delete(String(checkbox.dataset.selectRow));
     renderSelectionBar();
   }));
   tableBody.querySelectorAll('select[data-id]').forEach((select) => select.addEventListener('change', () => updateStatus(select.dataset.id, select.value)));
   tableBody.querySelectorAll('[data-detail]').forEach((button) => button.addEventListener('click', () => openDetailDrawer(button.dataset.detail)));
+  tableBody.querySelectorAll('[data-whatsapp-row]').forEach((button) => button.addEventListener('click', () => prepareWhatsAppFromRow(button.dataset.whatsappRow)));
   tableBody.querySelectorAll('[data-delete-row]').forEach((button) => button.addEventListener('click', () => deleteRecords([button.dataset.deleteRow])));
   document.querySelector('#select-page')?.addEventListener('change', (event) => {
     pageRows.forEach((row) => { if (event.target.checked) selectedIds.add(String(row.id)); else selectedIds.delete(String(row.id)); });
@@ -383,56 +382,56 @@ async function uploadProductImage(file) {
   const data = await response.json().catch(() => ({}));
   throw new Error(data.error || 'Media upload failed.');
 }
-async function loadWhatsApp(showStatus) {
-  if (!whatsappSettingsForm) return;
-  try {
-    const [configData, messagesData] = await Promise.all([adminFetch('/api/admin/whatsapp'), adminFetch('/api/admin/whatsapp/messages')]);
-    const config = configData.config || {};
-    whatsappPhoneId.value = config.phone_number_id || '';
-    whatsappVersion.value = config.graph_version || 'v25.0';
-    whatsappVerifyToken.value = config.webhook_verify_token || '';
-    whatsappToken.value = '';
-    whatsappToken.placeholder = config.access_token_saved ? `Saved token ${config.access_token_hint || ''}` : 'Paste Meta access token';
-    renderWhatsAppThread(messagesData.messages || []);
-    if (showStatus && whatsappSettingsMessage) whatsappSettingsMessage.textContent = 'WhatsApp settings loaded.';
-  } catch (error) { showAdminError(error); }
+function prepareWhatsAppFromRow(id) {
+  const row = rows.find((item) => String(item.id) === String(id));
+  if (!row) return;
+  const phone = recordPhone(row);
+  if (!phone) return;
+  const message = recordMessage(row);
+  if (whatsappTo) whatsappTo.value = phone;
+  if (whatsappMessage) whatsappMessage.value = message;
+  showPanel('whatsapp');
+  whatsappMessage?.focus();
 }
-async function saveWhatsAppSettings(event) {
-  event.preventDefault();
-  try {
-    const payload = {
-      phone_number_id: whatsappPhoneId.value.trim(),
-      graph_version: whatsappVersion.value.trim() || 'v25.0',
-      webhook_verify_token: whatsappVerifyToken.value.trim(),
-      access_token: whatsappToken.value.trim()
-    };
-    const data = await adminFetch('/api/admin/whatsapp', { method: 'PUT', body: JSON.stringify(payload) });
-    whatsappToken.value = '';
-    whatsappToken.placeholder = data.config?.access_token_saved ? `Saved token ${data.config.access_token_hint || ''}` : 'Paste Meta access token';
-    if (whatsappSettingsMessage) whatsappSettingsMessage.textContent = 'WhatsApp API saved.';
-    pushAudit('whatsapp.save_settings', 'WhatsApp API settings saved');
-  } catch (error) { setWhatsAppError(whatsappSettingsMessage, error); }
+function openWhatsAppChat(phoneValue, messageValue, label) {
+  const phone = normalizePhone(phoneValue);
+  const message = String(messageValue || '').trim();
+  if (!phone || !message) {
+    if (whatsappMessageStatus) whatsappMessageStatus.textContent = 'Enter a phone number and message first.';
+    return;
+  }
+  const url = `https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener');
+  saveWhatsAppHistory({ phone, message, label: label || 'Manual chat', url, at: new Date().toISOString() });
+  pushAudit('whatsapp.open_web', `Opened WhatsApp Web chat for ${phone}`);
+  if (whatsappMessageStatus) whatsappMessageStatus.textContent = 'WhatsApp Web opened in a new tab. If needed, scan the QR code there first.';
+  renderWhatsAppHistory();
 }
-async function sendWhatsAppMessage(event) {
-  event.preventDefault();
-  try {
-    const payload = { to: whatsappTo.value.trim(), message: whatsappMessage.value.trim(), preview_url: whatsappPreviewUrl.checked };
-    const data = await adminFetch('/api/admin/whatsapp/send', { method: 'POST', body: JSON.stringify(payload) });
-    whatsappMessage.value = '';
-    if (whatsappSendMessage) whatsappSendMessage.textContent = `Message sent to ${payload.to}.`;
-    pushAudit('whatsapp.send', `Sent WhatsApp message to ${payload.to}`);
-    renderWhatsAppThread(data.messages || []);
-  } catch (error) { setWhatsAppError(whatsappSendMessage, error); }
+function recordPhone(row) {
+  return normalizePhone(row.parent_guardian_phone || row.phone || row.emergency_contact_mobile || '');
 }
-function renderWhatsAppThread(messages) {
-  if (!whatsappThread) return;
-  whatsappThread.innerHTML = messages.length ? messages.map((message) => `<article class="whatsapp-message"><strong>${escapeHtml(message.direction || 'message')} ${escapeHtml(message.from || message.to || '')}</strong><p>${escapeHtml(new Date(message.created_at || Date.now()).toLocaleString())}</p><pre>${escapeHtml(message.body || message.status || JSON.stringify(message, null, 2))}</pre></article>`).join('') : '<article class="whatsapp-message"><strong>No WhatsApp messages yet</strong><p>Sent messages and webhook replies will appear here.</p></article>';
+function recordName(row) {
+  return row.parent_guardian_name || row.name || row.student_1_name || 'there';
 }
-function setWebhookUrl() {
-  if (whatsappWebhookUrl) whatsappWebhookUrl.textContent = `${window.location.origin}/api/whatsapp/webhook`;
+function recordMessage(row) {
+  if (currentType === 'registrations') return `Hello ${recordName(row)}, this is Apex Camp Kuwait. We received your registration for ${asArray(row.camp_weeks).join(', ') || 'camp'}. We are contacting you to confirm availability and payment details.`;
+  if (currentType === 'contacts') return `Hello ${recordName(row)}, this is Apex Camp Kuwait. Thank you for contacting us. We are following up on your message.`;
+  if (currentType === 'instructors') return `Hello ${recordName(row)}, this is Apex Camp Kuwait. Thank you for applying to be an instructor. We are reviewing your application and will follow up here.`;
+  if (currentType === 'counsellors') return `Hello ${recordName(row)}, this is Apex Camp Kuwait. Thank you for applying to be a counsellor. We are reviewing your application and will follow up here.`;
+  return `Hello ${recordName(row)}, this is Apex Camp Kuwait.`;
 }
-function setWhatsAppError(target, error) {
-  if (target) target.textContent = error.message || 'WhatsApp request failed.';
+function saveWhatsAppHistory(item) {
+  const history = getWhatsAppHistory();
+  history.unshift(item);
+  localStorage.setItem(whatsappHistoryKey, JSON.stringify(history.slice(0, 25)));
+}
+function getWhatsAppHistory() {
+  try { return JSON.parse(localStorage.getItem(whatsappHistoryKey) || '[]'); } catch { return []; }
+}
+function renderWhatsAppHistory() {
+  if (!whatsappHistory) return;
+  const history = getWhatsAppHistory();
+  whatsappHistory.innerHTML = history.length ? history.map((item) => `<article><strong>${escapeHtml(item.label || item.phone)}</strong><p>${escapeHtml(new Date(item.at).toLocaleString())} · ${escapeHtml(item.phone)}</p><pre>${escapeHtml(item.message)}</pre><a class="admin-ghost-button" href="${escapeAttr(item.url)}" target="_blank" rel="noopener">Reopen Chat</a></article>`).join('') : '<article><strong>No WhatsApp chats yet</strong><p>Open a WhatsApp Web chat from a submission or the form above.</p></article>';
 }
 async function adminFetch(path, options = {}) {
   const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}`, ...(options.headers || {}) } });
@@ -524,6 +523,7 @@ function parseUploadValue(value) {
   if (typeof value !== 'string' || !value.startsWith('{')) return null;
   try { const upload = JSON.parse(value); return upload?.name && upload?.data_url ? upload : null; } catch { return null; }
 }
+function normalizePhone(value) { return String(value || '').replace(/[^0-9]/g, ''); }
 function asArray(value) { return Array.isArray(value) ? value : (value ? [value] : []); }
 function parseMoney(value) { const match = String(value || '').match(/\d+/); return match ? Number(match[0]) : 0; }
 function csvCell(value) { const text = Array.isArray(value) ? value.join('; ') : typeof value === 'object' && value ? JSON.stringify(value) : String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
