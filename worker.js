@@ -1,7 +1,5 @@
 const PREFIX = 'apexcampwebsite:';
 const CONFIG_KEY = `${PREFIX}site-config`;
-const WHATSAPP_CONFIG_KEY = `${PREFIX}whatsapp-config`;
-const WHATSAPP_MESSAGES_PREFIX = `${PREFIX}whatsapp-message:`;
 const DEFAULT_CAMP_PRICING = [
   { children: 1, week_1: 185, week_2: 333, week_3: 471, week_4: 592 },
   { children: 2, week_1: 333, week_2: 599, week_3: 849, week_4: 1065 },
@@ -29,12 +27,6 @@ const DEFAULT_SITE_CONFIG = {
     { id: 'apex-cap', name: 'Apex Camp Cap', price: '5 KWD', image_url: 'Profile%20Picture%201.jpg.jpeg', description: 'Easy everyday cap for camp days.', active: true }
   ]
 };
-const DEFAULT_WHATSAPP_CONFIG = {
-  phone_number_id: '',
-  graph_version: 'v25.0',
-  webhook_verify_token: '',
-  access_token: ''
-};
 const TABLES = {
   registrations: { label: 'Registrations', fields: ['id', 'created_at', 'status', 'camp_weeks', 'child_count', 'total_weeks', 'estimated_total_kd', 'parent_guardian_name', 'parent_guardian_email', 'parent_guardian_phone', 'emergency_contact_name', 'emergency_contact_mobile', 'student_1_name', 'student_1_date_of_birth', 'student_1_has_medical_condition', 'student_1_medical_condition_details', 'student_2_name', 'student_2_date_of_birth', 'student_2_has_medical_condition', 'student_2_medical_condition_details', 'student_3_name', 'student_3_date_of_birth', 'student_3_has_medical_condition', 'student_3_medical_condition_details'] },
   counsellors: { label: 'Counsellors', fields: ['id', 'created_at', 'status', 'name', 'email', 'phone', 'age', 'availability', 'experience', 'motivation'] },
@@ -59,11 +51,6 @@ export default {
 async function handleApi(request, env, url) {
   assertDb(env);
 
-  if (url.pathname === '/api/whatsapp/webhook') {
-    if (request.method === 'GET') return verifyWhatsAppWebhook(env, url);
-    if (request.method === 'POST') return receiveWhatsAppWebhook(request, env);
-  }
-
   if (request.method === 'GET' && url.pathname === '/api/site-config') return json(await getSiteConfig(env));
   if (request.method === 'POST' && url.pathname === '/api/register') return saveRecord(request, env, 'registrations');
   if (request.method === 'POST' && url.pathname === '/api/apply-counsellor') return saveRecord(request, env, 'counsellors');
@@ -80,10 +67,6 @@ async function handleApi(request, env, url) {
     if (request.method === 'GET' && url.pathname === '/api/admin/site-config') return json(await getSiteConfig(env));
     if (request.method === 'PUT' && url.pathname === '/api/admin/site-config') return saveSiteConfig(request, env);
     if (request.method === 'POST' && url.pathname === '/api/admin/media') return uploadMedia(request, env);
-    if (request.method === 'GET' && url.pathname === '/api/admin/whatsapp') return adminWhatsAppConfig(env);
-    if (request.method === 'PUT' && url.pathname === '/api/admin/whatsapp') return saveWhatsAppConfig(request, env);
-    if (request.method === 'GET' && url.pathname === '/api/admin/whatsapp/messages') return adminWhatsAppMessages(env);
-    if (request.method === 'POST' && url.pathname === '/api/admin/whatsapp/send') return sendWhatsAppMessage(request, env);
   }
 
   return json({ error: 'API route not found.' }, 404);
@@ -227,136 +210,6 @@ async function getRows(env, type) {
   return rows.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }
 
-async function adminWhatsAppConfig(env) {
-  return json({ config: sanitizeWhatsAppConfig(await getWhatsAppConfig(env)) });
-}
-
-async function saveWhatsAppConfig(request, env) {
-  const body = await request.json();
-  const current = await getWhatsAppConfig(env);
-  const config = normalizeWhatsAppConfig(body, current);
-  await env.DB.put(WHATSAPP_CONFIG_KEY, JSON.stringify(config));
-  return json({ ok: true, config: sanitizeWhatsAppConfig(config) });
-}
-
-async function adminWhatsAppMessages(env) {
-  return json({ messages: await getWhatsAppMessages(env) });
-}
-
-async function sendWhatsAppMessage(request, env) {
-  const body = await request.json();
-  const config = await getWhatsAppConfig(env);
-  if (!config.phone_number_id) fail('WhatsApp phone number ID is required.', 400);
-  if (!config.access_token) fail('WhatsApp access token is required.', 400);
-  const to = normalizeWhatsAppNumber(body.to);
-  const text = requiredText(body.message, 'Message');
-  const endpoint = `https://graph.facebook.com/${config.graph_version}/${encodeURIComponent(config.phone_number_id)}/messages`;
-  const payload = {
-    messaging_product: 'whatsapp',
-    recipient_type: 'individual',
-    to,
-    type: 'text',
-    text: { preview_url: Boolean(body.preview_url), body: text }
-  };
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${config.access_token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) fail(metaErrorMessage(data, response.status), response.status);
-  await storeWhatsAppMessage(env, { id: data.messages?.[0]?.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, direction: 'sent', to, body: text, status: data.messages?.[0]?.message_status || 'sent', meta: data });
-  return json({ ok: true, result: data, messages: await getWhatsAppMessages(env) });
-}
-
-async function verifyWhatsAppWebhook(env, url) {
-  const config = await getWhatsAppConfig(env);
-  const mode = url.searchParams.get('hub.mode');
-  const token = url.searchParams.get('hub.verify_token');
-  const challenge = url.searchParams.get('hub.challenge');
-  if (mode === 'subscribe' && token && token === config.webhook_verify_token) return new Response(challenge || '', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-  return new Response('Forbidden', { status: 403 });
-}
-
-async function receiveWhatsAppWebhook(request, env) {
-  const body = await request.json().catch(() => ({}));
-  const messages = extractWhatsAppMessages(body);
-  await Promise.all(messages.map((message) => storeWhatsAppMessage(env, message)));
-  return new Response('EVENT_RECEIVED', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-}
-
-function extractWhatsAppMessages(payload) {
-  const output = [];
-  for (const entry of payload.entry || []) {
-    for (const change of entry.changes || []) {
-      const value = change.value || {};
-      const contactsByWaId = new Map((value.contacts || []).map((contact) => [contact.wa_id, contact.profile?.name || contact.wa_id]));
-      for (const message of value.messages || []) {
-        output.push({
-          id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          direction: 'received',
-          from: message.from,
-          contact_name: contactsByWaId.get(message.from) || '',
-          body: message.text?.body || `[${message.type || 'message'} message]`,
-          type: message.type || 'unknown',
-          created_at: message.timestamp ? new Date(Number(message.timestamp) * 1000).toISOString() : new Date().toISOString(),
-          meta: message
-        });
-      }
-      for (const status of value.statuses || []) {
-        output.push({
-          id: status.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          direction: 'status',
-          to: status.recipient_id,
-          status: status.status,
-          body: `Message ${status.status}`,
-          created_at: status.timestamp ? new Date(Number(status.timestamp) * 1000).toISOString() : new Date().toISOString(),
-          meta: status
-        });
-      }
-    }
-  }
-  return output;
-}
-
-async function getWhatsAppConfig(env) {
-  const stored = await env.DB.get(WHATSAPP_CONFIG_KEY, 'json');
-  return { ...DEFAULT_WHATSAPP_CONFIG, ...(stored || {}) };
-}
-
-function normalizeWhatsAppConfig(input, current) {
-  const accessToken = optionalText(input.access_token) || current.access_token || '';
-  return {
-    phone_number_id: requiredConfigText(input.phone_number_id, current.phone_number_id || ''),
-    graph_version: normalizeGraphVersion(input.graph_version || current.graph_version || DEFAULT_WHATSAPP_CONFIG.graph_version),
-    webhook_verify_token: requiredConfigText(input.webhook_verify_token, current.webhook_verify_token || ''),
-    access_token: accessToken
-  };
-}
-
-function sanitizeWhatsAppConfig(config) {
-  return {
-    phone_number_id: config.phone_number_id || '',
-    graph_version: config.graph_version || DEFAULT_WHATSAPP_CONFIG.graph_version,
-    webhook_verify_token: config.webhook_verify_token || '',
-    access_token_saved: Boolean(config.access_token),
-    access_token_hint: maskToken(config.access_token)
-  };
-}
-
-async function getWhatsAppMessages(env) {
-  const listed = await env.DB.list({ prefix: WHATSAPP_MESSAGES_PREFIX, limit: 200 });
-  const messages = await Promise.all(listed.keys.map(async (item) => JSON.parse(await env.DB.get(item.name))));
-  return messages.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 200);
-}
-
-async function storeWhatsAppMessage(env, message) {
-  const createdAt = message.created_at || new Date().toISOString();
-  const record = { ...message, created_at: createdAt };
-  const safeId = slug(message.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-  await env.DB.put(`${WHATSAPP_MESSAGES_PREFIX}${createdAt}:${safeId}`, JSON.stringify(record));
-}
-
 async function uploadMedia(request, env) {
   if (!env.MEDIA) fail('R2 binding MEDIA is not configured. Add an R2 bucket binding named MEDIA to enable direct media uploads.', 400);
   const form = await request.formData();
@@ -445,10 +298,6 @@ function asArray(value) { if (Array.isArray(value)) return value.map((item) => S
 function requiredArray(value, label) { const values = asArray(value); if (!values.length) fail(`${label} requires at least one selection.`, 400); return values; }
 function csvCell(value) { const text = Array.isArray(value) ? value.join('; ') : typeof value === 'object' && value ? JSON.stringify(value) : String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
 function slug(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `item-${Date.now()}`; }
-function normalizeGraphVersion(value) { const version = optionalText(value) || DEFAULT_WHATSAPP_CONFIG.graph_version; return /^v\d+\.\d+$/.test(version) ? version : DEFAULT_WHATSAPP_CONFIG.graph_version; }
-function normalizeWhatsAppNumber(value) { const phone = requiredText(value, 'Recipient WhatsApp number').replace(/[^0-9]/g, ''); if (phone.length < 8) fail('Enter the recipient number with country code, for example 965XXXXXXXX.', 400); return phone; }
-function maskToken(value) { const token = optionalText(value); return token ? `ending ${token.slice(-4)}` : ''; }
-function metaErrorMessage(data, status) { return data?.error?.message ? `WhatsApp API error ${status}: ${data.error.message}` : `WhatsApp API error ${status}.`; }
 function arrayBufferToBase64(buffer) { const bytes = new Uint8Array(buffer); let binary = ''; const chunkSize = 0x8000; for (let i = 0; i < bytes.length; i += chunkSize) binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize)); return btoa(binary); }
 function escapeEmail(value) { return String(value || '').replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char])); }
 function fail(message, status) { const error = new Error(message); error.status = status; throw error; }
