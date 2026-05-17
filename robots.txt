@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /admin.html
-Disallow: /api/admin/
+Disallow: /api/
+Disallow: /.wrangler/
+Disallow: /thanks.html
 
 Sitemap: https://apexcamp.com/sitemap.xml
