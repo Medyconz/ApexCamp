@@ -3,122 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register | Apex Camp</title>
-  <meta name="description" content="Register for Apex Camp weeks, choose child count, review estimated KD pricing, and submit camper medical details securely.">
+  <title>Register for Apex Camp Kuwait | Kids Summer Camp Weeks & Pricing</title>
+  <meta name="description" content="Register for Apex Camp Kuwait kids camp weeks, choose child count, review KD pricing, and submit camper medical and emergency contact details.">
+  <meta name="keywords" content="Apex Camp Kuwait registration, register summer camp Kuwait, kids camp Kuwait pricing, children camp Kuwait">
+  <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://apexcamp.com/register.html">
-  <meta property="og:title" content="Register for Apex Camp">
-  <meta property="og:description" content="Choose Apex Camp weeks and submit camper details for confirmation.">
+  <meta property="og:site_name" content="Apex Camp Kuwait">
+  <meta property="og:title" content="Register for Apex Camp Kuwait">
+  <meta property="og:description" content="Choose Apex Camp Kuwait weeks and submit camper details for confirmation.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="Profile%20Picture%201.jpg.jpeg">
+  <meta property="og:url" content="https://apexcamp.com/register.html">
+  <meta property="og:image" content="https://apexcamp.com/Profile%20Picture%201.jpg.jpeg">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="Profile%20Picture%201.jpg.jpeg">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="cms.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="index.html"><img class="brand-logo" src="Profile%20Picture%201.jpg.jpeg" alt="Apex Camp logo"><span>Apex Camp</span></a>
+    <a class="brand" href="index.html"><img class="brand-logo" src="Profile%20Picture%201.jpg.jpeg" alt="Apex Camp Kuwait logo"><span>Apex Camp</span></a>
     <nav class="site-nav"><a href="apply-counsellor.html">Apply to be a Counsellor</a><a href="apply-instructor.html">Apply to be an Instructor</a><a class="nav-cta" href="register.html">Register Now</a><a href="activities.html">See Activities</a><a href="merch.html">Merch</a><a href="about.html">About Us</a><a href="contact.html">Contact Us</a><a href="faq.html">FAQ</a><a href="admin.html">Admin</a></nav>
   </header>
   <main>
     <section class="form-layout">
       <div class="registration-intro">
-        <p class="eyebrow">Register now</p>
-        <h1>Save a place at Apex Camp.</h1>
+        <p class="eyebrow">Register for Apex Camp Kuwait</p>
+        <h1>Save a place at Apex Camp Kuwait.</h1>
         <p>Choose at least one full camp week, then fill in the parent contact, emergency contact, and student medical details.</p>
         <section class="pricing-panel" aria-labelledby="pricing-title">
-          <div>
-            <p class="eyebrow">Camp pricing</p>
-            <h2 id="pricing-title">Weekly packages</h2>
-          </div>
-          <div class="pricing-table-wrap">
-            <table class="pricing-table">
-              <thead>
-                <tr><th>Children</th><th>1 Week</th><th>2 Weeks</th><th>3 Weeks</th><th>4 Weeks</th></tr>
-              </thead>
-              <tbody>
-                <tr><th>1 Child</th><td>185 KD</td><td>333 KD</td><td>471 KD</td><td>592 KD</td></tr>
-                <tr><th>2 Children</th><td>333 KD</td><td>599 KD</td><td>849 KD</td><td>1065 KD</td></tr>
-                <tr><th>3 Children</th><td>471 KD</td><td>849 KD</td><td>1202 KD</td><td>1509 KD</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <div><p class="eyebrow">Camp pricing</p><h2 id="pricing-title">Weekly packages</h2></div>
+          <div class="pricing-table-wrap"><table class="pricing-table"><thead><tr><th>Children</th><th>1 Week</th><th>2 Weeks</th><th>3 Weeks</th><th>4 Weeks</th></tr></thead><tbody><tr><th>1 Child</th><td>185 KD</td><td>333 KD</td><td>471 KD</td><td>592 KD</td></tr><tr><th>2 Children</th><td>333 KD</td><td>599 KD</td><td>849 KD</td><td>1065 KD</td></tr><tr><th>3 Children</th><td>471 KD</td><td>849 KD</td><td>1202 KD</td><td>1509 KD</td></tr></tbody></table></div>
           <p class="form-hint">Prices are shown in Kuwaiti Dinar. For 5 or more selected weeks, the Apex Camp team will confirm the final total.</p>
         </section>
-        <section class="payment-panel" id="payment-info" aria-labelledby="payment-title">
-          <p class="eyebrow">Payment</p>
-          <h2 id="payment-title">Submit first, pay after confirmation.</h2>
-          <p data-payment-instructions>Your registration will be saved first. The Apex Camp team will contact you to confirm availability and payment details.</p>
-          <a class="button secondary" data-payment-link href="#" hidden>Open Payment Link</a>
-        </section>
+        <section class="payment-panel" id="payment-info" aria-labelledby="payment-title"><p class="eyebrow">Payment</p><h2 id="payment-title">Submit first, pay after confirmation.</h2><p data-payment-instructions>Your registration will be saved first. The Apex Camp team will contact you to confirm availability and payment details.</p><a class="button secondary" data-payment-link href="#" hidden>Open Payment Link</a></section>
       </div>
       <form class="camp-form" data-endpoint="/api/register" method="post" action="/api/register">
-        <fieldset class="form-section" data-required-group="camp_weeks">
-          <legend>Camp dates</legend>
-          <p class="form-hint">Registration is for a minimum of one week. Each week runs Sunday to Thursday.</p>
-          <div class="choice-list">
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 1: June 14-18, 2026"> Week 1: June 14-18, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 2: June 21-25, 2026"> Week 2: June 21-25, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 3: June 28-July 2, 2026"> Week 3: June 28-July 2, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 4: July 5-9, 2026"> Week 4: July 5-9, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 5: July 12-16, 2026"> Week 5: July 12-16, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 6: July 19-23, 2026"> Week 6: July 19-23, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 7: July 26-30, 2026"> Week 7: July 26-30, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 8: August 2-6, 2026"> Week 8: August 2-6, 2026</label>
-            <label class="choice"><input type="checkbox" name="camp_weeks" value="Week 9: August 9-13, 2026"> Week 9: August 9-13, 2026</label>
-          </div>
-        </fieldset>
-        <fieldset class="form-section price-estimate-section">
-          <legend>Students and price estimate</legend>
-          <label>Number of Children
-            <select name="child_count" id="child-count" required>
-              <option value="1">1 Child</option>
-              <option value="2">2 Children</option>
-              <option value="3">3 Children</option>
-            </select>
-          </label>
-          <div class="price-estimate" id="price-estimate" role="status">Choose camp dates to see the estimated total.</div>
-          <input type="hidden" name="total_weeks" id="total-weeks" value="0">
-          <input type="hidden" name="estimated_total_kd" id="estimated-total-kd" value="">
-        </fieldset>
-        <fieldset class="form-section">
-          <legend>Contact information</legend>
-          <label>Parent/Guardian Name <input name="parent_guardian_name" autocomplete="name" required></label>
-          <label>Parent/Guardian Email <input type="email" name="parent_guardian_email" autocomplete="email" required></label>
-          <label>Parent/Guardian Phone <input name="parent_guardian_phone" inputmode="tel" autocomplete="tel" placeholder="+965" required></label>
-        </fieldset>
-        <fieldset class="form-section">
-          <legend>Emergency contact</legend>
-          <label>Name of Emergency Contact <input name="emergency_contact_name" autocomplete="name" required></label>
-          <label>Mobile Number <input name="emergency_contact_mobile" inputmode="tel" autocomplete="tel" placeholder="+965" required></label>
-        </fieldset>
-        <fieldset class="form-section student-section" data-student="1">
-          <legend>Student 1</legend>
-          <label>Name <input name="student_1_name" autocomplete="name" data-required-when-active required></label>
-          <label>Date of Birth <input type="date" name="student_1_date_of_birth" data-required-when-active required></label>
-          <label>Medical Condition <select name="student_1_has_medical_condition" data-required-when-active required><option value="">Choose one</option><option value="No">No</option><option value="Yes">Yes</option></select></label>
-          <label>If Yes, Please Explain <textarea name="student_1_medical_condition_details" rows="4"></textarea></label>
-        </fieldset>
-        <fieldset class="form-section student-section" data-student="2" hidden>
-          <legend>Student 2</legend>
-          <label>Name <input name="student_2_name" autocomplete="name" data-required-when-active></label>
-          <label>Date of Birth <input type="date" name="student_2_date_of_birth" data-required-when-active></label>
-          <label>Medical Condition <select name="student_2_has_medical_condition" data-required-when-active><option value="">Choose one</option><option value="No">No</option><option value="Yes">Yes</option></select></label>
-          <label>If Yes, Please Explain <textarea name="student_2_medical_condition_details" rows="4"></textarea></label>
-        </fieldset>
-        <fieldset class="form-section student-section" data-student="3" hidden>
-          <legend>Student 3</legend>
-          <label>Name <input name="student_3_name" autocomplete="name" data-required-when-active></label>
-          <label>Date of Birth <input type="date" name="student_3_date_of_birth" data-required-when-active></label>
-          <label>Medical Condition <select name="student_3_has_medical_condition" data-required-when-active><option value="">Choose one</option><option value="No">No</option><option value="Yes">Yes</option></select></label>
-          <label>If Yes, Please Explain <textarea name="student_3_medical_condition_details" rows="4"></textarea></label>
-        </fieldset>
-        <button class="button" type="submit">Submit Registration</button>
-        <p class="form-message" role="status"></p>
-        <section class="registration-summary" id="registration-summary" aria-live="polite" hidden></section>
+        <fieldset class="form-section" data-required-group="camp_weeks"><legend>Camp dates</legend><p class="form-hint">Registration is for a minimum of one week. Each week runs Sunday to Thursday.</p><div class="choice-list"><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 1: June 14-18, 2026"> Week 1: June 14-18, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 2: June 21-25, 2026"> Week 2: June 21-25, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 3: June 28-July 2, 2026"> Week 3: June 28-July 2, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 4: July 5-9, 2026"> Week 4: July 5-9, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 5: July 12-16, 2026"> Week 5: July 12-16, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 6: July 19-23, 2026"> Week 6: July 19-23, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 7: July 26-30, 2026"> Week 7: July 26-30, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 8: August 2-6, 2026"> Week 8: August 2-6, 2026</label><label class="choice"><input type="checkbox" name="camp_weeks" value="Week 9: August 9-13, 2026"> Week 9: August 9-13, 2026</label></div></fieldset>
+        <fieldset class="form-section price-estimate-section"><legend>Students and price estimate</legend><label>Number of Children <select name="child_count" id="child-count" required><option value="1">1 Child</option><option value="2">2 Children</option><option value="3">3 Children</option></select></label><div class="price-estimate" id="price-estimate" role="status">Choose camp dates to see the estimated total.</div><input type="hidden" name="total_weeks" id="total-weeks" value="0"><input type="hidden" name="estimated_total_kd" id="estimated-total-kd" value=""></fieldset>
+        <fieldset class="form-section"><legend>Contact information</legend><label>Parent/Guardian Name <input name="parent_guardian_name" autocomplete="name" required></label><label>Parent/Guardian Email <input type="email" name="parent_guardian_email" autocomplete="email" required></label><label>Parent/Guardian Phone <input name="parent_guardian_phone" inputmode="tel" autocomplete="tel" placeholder="+965" required></label></fieldset>
+        <fieldset class="form-section"><legend>Emergency contact</legend><label>Name of Emergency Contact <input name="emergency_contact_name" autocomplete="name" required></label><label>Mobile Number <input name="emergency_contact_mobile" inputmode="tel" autocomplete="tel" placeholder="+965" required></label></fieldset>
+        <fieldset class="form-section student-section" data-student="1"><legend>Student 1</legend><label>Name <input name="student_1_name" autocomplete="name" data-required-when-active required></label><label>Date of Birth <input type="date" name="student_1_date_of_birth" data-required-when-active required></label><label>Medical Condition <select name="student_1_has_medical_condition" data-required-when-active required><option value="">Choose one</option><option value="No">No</option><option value="Yes">Yes</option></select></label><label>If Yes, Please Explain <textarea name="student_1_medical_condition_details" rows="4"></textarea></label></fieldset>
+        <fieldset class="form-section student-section" data-student="2" hidden><legend>Student 2</legend><label>Name <input name="student_2_name" autocomplete="name" data-required-when-active></label><label>Date of Birth <input type="date" name="student_2_date_of_birth" data-required-when-active></label><label>Medical Condition <select name="student_2_has_medical_condition" data-required-when-active><option value="">Choose one</option><option value="No">No</option><option value="Yes">Yes</option></select></label><label>If Yes, Please Explain <textarea name="student_2_medical_condition_details" rows="4"></textarea></label></fieldset>
+        <fieldset class="form-section student-section" data-student="3" hidden><legend>Student 3</legend><label>Name <input name="student_3_name" autocomplete="name" data-required-when-active></label><label>Date of Birth <input type="date" name="student_3_date_of_birth" data-required-when-active></label><label>Medical Condition <select name="student_3_has_medical_condition" data-required-when-active><option value="">Choose one</option><option value="No">No</option><option value="Yes">Yes</option></select></label><label>If Yes, Please Explain <textarea name="student_3_medical_condition_details" rows="4"></textarea></label></fieldset>
+        <button class="button" type="submit">Submit Registration</button><p class="form-message" role="status"></p><section class="registration-summary" id="registration-summary" aria-live="polite" hidden></section>
       </form>
     </section>
   </main>
-  <footer>Apex Camp. Bright days, brave starts, big smiles.</footer>
+  <footer>Apex Camp Kuwait. Bright days, brave starts, big smiles.</footer>
   <script src="script.js"></script>
 </body>
 </html>
