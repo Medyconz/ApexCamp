@@ -1,13 +1,13 @@
 const tokenKey = 'apexAdminToken';
 const auditKey = 'apexAdminAuditTrail';
 const resources = [
-  { key: 'dashboard', label: 'Dashboard', panel: 'dashboard', hint: 'Needs attention, totals, quick routes', keywords: ['home', 'overview', 'attention'] },
-  { key: 'records', label: 'Submissions', panel: 'records', hint: 'Registrations, staff applications, contact messages', keywords: ['database', 'registrations', 'contacts', 'applications'] },
-  { key: 'dates', label: 'Registration Dates', panel: 'dates', hint: 'Camp week choices', keywords: ['weeks', 'dates', 'calendar'] },
-  { key: 'pricing', label: 'Pricing & Payment', panel: 'pricing', hint: 'Price matrix and parent payment copy', keywords: ['payment', 'price', 'kd'] },
-  { key: 'merch', label: 'Merch Products', panel: 'merch', hint: 'Products, images, buy links', keywords: ['shop', 'products', 'catalog'] },
-  { key: 'backup', label: 'Backup Snapshot', panel: 'backup', hint: 'Download all admin data', keywords: ['export', 'snapshot', 'backup'] },
-  { key: 'audit', label: 'Audit Trail', panel: 'audit', hint: 'Recent admin actions', keywords: ['log', 'history', 'actions'] }
+  { key: 'dashboard', label: 'Dashboard', panel: 'dashboard', hint: 'Overview', keywords: ['home', 'overview'] },
+  { key: 'records', label: 'Submissions', panel: 'records', hint: 'Registrations and messages', keywords: ['database', 'registrations', 'contacts', 'applications'] },
+  { key: 'dates', label: 'Registration Dates', panel: 'dates', hint: 'Camp weeks', keywords: ['weeks', 'dates', 'calendar'] },
+  { key: 'pricing', label: 'Pricing & Payment', panel: 'pricing', hint: 'Prices and payment', keywords: ['payment', 'price', 'kd'] },
+  { key: 'merch', label: 'Merch Products', panel: 'merch', hint: 'Products', keywords: ['shop', 'products', 'catalog'] },
+  { key: 'whatsapp', label: 'WhatsApp Business', panel: 'whatsapp', hint: 'Send and receive WhatsApp messages', keywords: ['whatsapp', 'messages', 'business api'] },
+  { key: 'audit', label: 'Audit Trail', panel: 'audit', hint: 'Actions', keywords: ['log', 'history', 'actions'] }
 ];
 const statusList = ['new', 'reviewed', 'contacted', 'accepted', 'archived'];
 const tableConfig = {
@@ -43,6 +43,7 @@ const selectionBar = document.querySelector('#selection-bar');
 const selectionCount = document.querySelector('#selection-count');
 const clearSelectionButton = document.querySelector('#clear-selection');
 const exportSelectedButton = document.querySelector('#export-selected');
+const deleteSelectedButton = document.querySelector('#delete-selected');
 const rowsPerPageSelect = document.querySelector('#rows-per-page');
 const pagePrev = document.querySelector('#page-prev');
 const pageNext = document.querySelector('#page-next');
@@ -62,12 +63,24 @@ const commandInput = document.querySelector('#command-input');
 const commandResults = document.querySelector('#command-results');
 const detailDrawer = document.querySelector('#detail-drawer');
 const detailContent = document.querySelector('#detail-content');
-const backupExportButton = document.querySelector('#backup-export');
-const backupSummary = document.querySelector('#backup-summary');
 const auditList = document.querySelector('#audit-list');
 const auditClearButton = document.querySelector('#audit-clear');
 const mobileAdminToggle = document.querySelector('#mobile-admin-toggle');
 const adminSidebar = document.querySelector('#admin-sidebar');
+const whatsappSettingsForm = document.querySelector('#whatsapp-settings-form');
+const whatsappSendForm = document.querySelector('#whatsapp-send-form');
+const whatsappPhoneId = document.querySelector('#whatsapp-phone-id');
+const whatsappVersion = document.querySelector('#whatsapp-version');
+const whatsappToken = document.querySelector('#whatsapp-token');
+const whatsappVerifyToken = document.querySelector('#whatsapp-verify-token');
+const whatsappWebhookUrl = document.querySelector('#whatsapp-webhook-url');
+const whatsappSettingsMessage = document.querySelector('#whatsapp-settings-message');
+const whatsappSendMessage = document.querySelector('#whatsapp-send-message');
+const whatsappTo = document.querySelector('#whatsapp-to');
+const whatsappMessage = document.querySelector('#whatsapp-message');
+const whatsappPreviewUrl = document.querySelector('#whatsapp-preview-url');
+const whatsappRefresh = document.querySelector('#whatsapp-refresh');
+const whatsappThread = document.querySelector('#whatsapp-thread');
 let currentPanel = 'dashboard';
 let currentType = 'registrations';
 let rows = [];
@@ -79,6 +92,7 @@ let siteConfig = { camp_weeks: [], camp_pricing: [], payment_settings: {}, merch
 renderResourceNav();
 renderCommandResults('');
 renderAuditTrail();
+setWebhookUrl();
 
 if (loginForm) {
   const savedToken = localStorage.getItem(tokenKey);
@@ -105,6 +119,7 @@ refreshButton?.addEventListener('click', () => loadAll());
 recordsRefreshButton?.addEventListener('click', () => loadRows());
 exportButton?.addEventListener('click', () => exportRows(getVisibleRows(), `${currentType}-filtered`));
 exportSelectedButton?.addEventListener('click', () => exportRows(rows.filter((row) => selectedIds.has(String(row.id))), `${currentType}-selected`));
+deleteSelectedButton?.addEventListener('click', () => deleteRecords([...selectedIds]));
 clearSelectionButton?.addEventListener('click', () => { selectedIds.clear(); renderTable(); });
 [searchInput, filterStatus, filterWeek, filterChildren, filterTotal].forEach((input) => input?.addEventListener('input', () => { page = 1; renderTable(); }));
 rowsPerPageSelect?.addEventListener('change', () => { page = 1; renderTable(); });
@@ -142,6 +157,9 @@ pricingForm?.addEventListener('submit', async (event) => {
   siteConfig.payment_settings = collectPaymentSettings();
   await saveSiteConfig('Pricing and payment saved.', 'site.edit_pricing');
 });
+whatsappSettingsForm?.addEventListener('submit', saveWhatsAppSettings);
+whatsappSendForm?.addEventListener('submit', sendWhatsAppMessage);
+whatsappRefresh?.addEventListener('click', () => loadWhatsApp(true));
 commandOpen?.addEventListener('click', openCommandPalette);
 commandClose?.addEventListener('click', closeCommandPalette);
 commandDialog?.addEventListener('click', (event) => { if (event.target === commandDialog) closeCommandPalette(); });
@@ -157,7 +175,6 @@ document.addEventListener('keydown', (event) => {
   }
 });
 document.querySelectorAll('[data-close-drawer]').forEach((item) => item.addEventListener('click', closeDetailDrawer));
-backupExportButton?.addEventListener('click', exportBackupSnapshot);
 auditClearButton?.addEventListener('click', () => {
   localStorage.removeItem(auditKey);
   renderAuditTrail();
@@ -166,7 +183,7 @@ mobileAdminToggle?.addEventListener('click', () => adminSidebar?.classList.toggl
 
 function renderResourceNav() {
   if (!resourceNav) return;
-  resourceNav.innerHTML = resources.map((resource) => `<button type="button" data-resource="${resource.key}"><span>${escapeHtml(resource.label)}</span><small>${escapeHtml(resource.hint)}</small></button>`).join('');
+  resourceNav.innerHTML = resources.map((resource) => `<button type="button" data-resource="${resource.key}">${escapeHtml(resource.label)}</button>`).join('');
   resourceNav.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => showPanel(button.dataset.resource)));
   syncResourceNav();
 }
@@ -181,28 +198,24 @@ function showPanel(name) {
   syncResourceNav();
   if (name === 'records' && !rows.length) loadRows();
   if (name === 'audit') renderAuditTrail();
-  if (name === 'backup') renderBackupSummary();
+  if (name === 'whatsapp') loadWhatsApp(false);
 }
 async function openDashboard() {
   loginForm.hidden = true;
   dashboard.hidden = false;
   logoutButton.hidden = false;
   await loadAll();
-  await loadSiteConfig();
+  await Promise.all([loadSiteConfig(), loadWhatsApp(false)]);
   showPanel(currentPanel || 'dashboard');
 }
-async function loadAll() {
-  await Promise.all([loadSummary(), loadRows()]);
-}
+async function loadAll() { await Promise.all([loadSummary(), loadRows()]); }
 async function loadSummary() {
   try {
     const data = await adminFetch('/api/admin/summary');
     summaryRows = data.summary || [];
     renderSummary();
     loginMessage.textContent = '';
-  } catch (error) {
-    showAdminError(error);
-  }
+  } catch (error) { showAdminError(error); }
 }
 async function loadRows() {
   try {
@@ -211,9 +224,7 @@ async function loadRows() {
     selectedIds.clear();
     populateWeekFilter();
     renderTable();
-  } catch (error) {
-    showAdminError(error);
-  }
+  } catch (error) { showAdminError(error); }
 }
 async function loadSiteConfig() {
   try {
@@ -221,18 +232,13 @@ async function loadSiteConfig() {
     renderWeekEditor();
     renderPricingEditor();
     renderProductEditor();
-    renderBackupSummary();
-  } catch (error) {
-    showAdminError(error);
-  }
+  } catch (error) { showAdminError(error); }
 }
 function renderSummary() {
-  if (statsTarget) {
-    statsTarget.innerHTML = summaryRows.map((item) => `<article class="ops-card"><span>${escapeHtml(item.label)}</span><strong>${item.total}</strong><small>${item.new_count} new</small></article>`).join('');
-  }
+  if (statsTarget) statsTarget.innerHTML = summaryRows.map((item) => `<article class="ops-card"><span>${escapeHtml(item.label)}</span><strong>${item.total}</strong><small>${item.new_count} new</small></article>`).join('');
   if (attentionCards) {
     const cards = summaryRows.filter((item) => Number(item.new_count) > 0);
-    attentionCards.innerHTML = (cards.length ? cards : summaryRows.slice(0, 4)).map((item) => `<article class="ops-card"><span>${escapeHtml(item.label)}</span><strong>${item.new_count}</strong><small>new items need review</small></article>`).join('');
+    attentionCards.innerHTML = (cards.length ? cards : summaryRows.slice(0, 4)).map((item) => `<article class="ops-card"><span>${escapeHtml(item.label)}</span><strong>${item.new_count}</strong><small>new items</small></article>`).join('');
   }
 }
 function getVisibleRows() {
@@ -253,6 +259,7 @@ function getVisibleRows() {
   });
 }
 function renderTable() {
+  if (!tableHead || !tableBody) return;
   const columns = tableConfig[currentType] || [];
   const visibleRows = getVisibleRows();
   const perPage = Number(rowsPerPageSelect?.value || 50);
@@ -260,14 +267,15 @@ function renderTable() {
   page = Math.min(Math.max(1, page), pageCount);
   const pageRows = visibleRows.slice((page - 1) * perPage, page * perPage);
   if (filterPanel) filterPanel.hidden = currentType !== 'registrations';
-  tableHead.innerHTML = `<tr><th><input type="checkbox" id="select-page" aria-label="Select visible rows"></th>${columns.map((column) => `<th>${formatColumn(column)}</th>`).join('')}<th>Action</th></tr>`;
-  tableBody.innerHTML = pageRows.map((row) => `<tr><td><input type="checkbox" data-select-row="${escapeAttr(row.id)}" ${selectedIds.has(String(row.id)) ? 'checked' : ''} aria-label="Select record ${escapeAttr(row.id)}"></td>${columns.map((column, index) => `<td>${index === 0 ? `<button class="row-link" type="button" data-detail="${escapeAttr(row.id)}">${formatValue(row[column])}</button>` : formatValue(row[column])}</td>`).join('')}<td><select data-id="${escapeAttr(row.id)}" aria-label="Update status for record ${escapeAttr(row.id)}">${statusList.map((status) => `<option value="${status}" ${row.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select></td></tr>`).join('');
+  tableHead.innerHTML = `<tr><th><input type="checkbox" id="select-page" aria-label="Select visible rows"></th>${columns.map((column) => `<th>${formatColumn(column)}</th>`).join('')}<th>Actions</th></tr>`;
+  tableBody.innerHTML = pageRows.map((row) => `<tr><td><input type="checkbox" data-select-row="${escapeAttr(row.id)}" ${selectedIds.has(String(row.id)) ? 'checked' : ''} aria-label="Select record ${escapeAttr(row.id)}"></td>${columns.map((column, index) => `<td>${index === 0 ? `<button class="row-link" type="button" data-detail="${escapeAttr(row.id)}">${formatValue(row[column])}</button>` : formatValue(row[column])}</td>`).join('')}<td><div class="admin-table-actions"><select data-id="${escapeAttr(row.id)}" aria-label="Update status for record ${escapeAttr(row.id)}">${statusList.map((status) => `<option value="${status}" ${row.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select><button class="admin-ghost-button danger-button" type="button" data-delete-row="${escapeAttr(row.id)}">Delete</button></div></td></tr>`).join('');
   tableBody.querySelectorAll('[data-select-row]').forEach((checkbox) => checkbox.addEventListener('change', () => {
     if (checkbox.checked) selectedIds.add(String(checkbox.dataset.selectRow)); else selectedIds.delete(String(checkbox.dataset.selectRow));
     renderSelectionBar();
   }));
   tableBody.querySelectorAll('select[data-id]').forEach((select) => select.addEventListener('change', () => updateStatus(select.dataset.id, select.value)));
   tableBody.querySelectorAll('[data-detail]').forEach((button) => button.addEventListener('click', () => openDetailDrawer(button.dataset.detail)));
+  tableBody.querySelectorAll('[data-delete-row]').forEach((button) => button.addEventListener('click', () => deleteRecords([button.dataset.deleteRow])));
   document.querySelector('#select-page')?.addEventListener('change', (event) => {
     pageRows.forEach((row) => { if (event.target.checked) selectedIds.add(String(row.id)); else selectedIds.delete(String(row.id)); });
     renderTable();
@@ -318,11 +326,8 @@ function renderProductEditor() {
       row.querySelector('[data-field="image_url"]').value = imageUrl;
       row.querySelector('.image-upload-preview').innerHTML = `<img src="${escapeAttr(imageUrl)}" alt="Uploaded product image">`;
       setMessage('Image ready. Save merch products to publish it.');
-    } catch (error) {
-      setMessage(error.message || 'Image upload failed.');
-    } finally {
-      input.value = '';
-    }
+    } catch (error) { setMessage(error.message || 'Image upload failed.'); }
+    finally { input.value = ''; }
   }));
 }
 function collectWeeks() { return [...weekEditor.querySelectorAll('.editor-row')].map((row, index) => ({ id: `week-${index + 1}`, label: row.querySelector('[data-field="label"]').value.trim(), active: row.querySelector('[data-field="active"]').checked })).filter((week) => week.label); }
@@ -338,9 +343,7 @@ async function saveSiteConfig(message, action) {
     renderProductEditor();
     pushAudit(action, message);
     setMessage(message);
-  } catch (error) {
-    showAdminError(error);
-  }
+  } catch (error) { showAdminError(error); }
 }
 async function updateStatus(id, status) {
   try {
@@ -350,9 +353,22 @@ async function updateStatus(id, status) {
     pushAudit('record.update_status', `${currentType} ${id} changed to ${status}`);
     await loadSummary();
     renderTable();
-  } catch (error) {
-    showAdminError(error);
-  }
+  } catch (error) { showAdminError(error); }
+}
+async function deleteRecords(ids) {
+  const cleanIds = ids.map(String).filter(Boolean);
+  if (!cleanIds.length) return;
+  const noun = cleanIds.length === 1 ? 'record' : 'records';
+  if (!confirm(`Delete ${cleanIds.length} ${currentType} ${noun}? This cannot be undone.`)) return;
+  try {
+    await adminFetch('/api/admin/submissions', { method: 'DELETE', body: JSON.stringify({ type: currentType, ids: cleanIds }) });
+    rows = rows.filter((row) => !cleanIds.includes(String(row.id)));
+    cleanIds.forEach((id) => selectedIds.delete(id));
+    pushAudit('record.delete', `Deleted ${cleanIds.length} ${currentType} ${noun}`);
+    await loadSummary();
+    renderTable();
+    setMessage(`Deleted ${cleanIds.length} ${noun}.`);
+  } catch (error) { showAdminError(error); }
 }
 async function uploadProductImage(file) {
   const form = new FormData();
@@ -367,6 +383,57 @@ async function uploadProductImage(file) {
   const data = await response.json().catch(() => ({}));
   throw new Error(data.error || 'Media upload failed.');
 }
+async function loadWhatsApp(showStatus) {
+  if (!whatsappSettingsForm) return;
+  try {
+    const [configData, messagesData] = await Promise.all([adminFetch('/api/admin/whatsapp'), adminFetch('/api/admin/whatsapp/messages')]);
+    const config = configData.config || {};
+    whatsappPhoneId.value = config.phone_number_id || '';
+    whatsappVersion.value = config.graph_version || 'v25.0';
+    whatsappVerifyToken.value = config.webhook_verify_token || '';
+    whatsappToken.value = '';
+    whatsappToken.placeholder = config.access_token_saved ? `Saved token ${config.access_token_hint || ''}` : 'Paste Meta access token';
+    renderWhatsAppThread(messagesData.messages || []);
+    if (showStatus && whatsappSettingsMessage) whatsappSettingsMessage.textContent = 'WhatsApp settings loaded.';
+  } catch (error) { showAdminError(error); }
+}
+async function saveWhatsAppSettings(event) {
+  event.preventDefault();
+  try {
+    const payload = {
+      phone_number_id: whatsappPhoneId.value.trim(),
+      graph_version: whatsappVersion.value.trim() || 'v25.0',
+      webhook_verify_token: whatsappVerifyToken.value.trim(),
+      access_token: whatsappToken.value.trim()
+    };
+    const data = await adminFetch('/api/admin/whatsapp', { method: 'PUT', body: JSON.stringify(payload) });
+    whatsappToken.value = '';
+    whatsappToken.placeholder = data.config?.access_token_saved ? `Saved token ${data.config.access_token_hint || ''}` : 'Paste Meta access token';
+    if (whatsappSettingsMessage) whatsappSettingsMessage.textContent = 'WhatsApp API saved.';
+    pushAudit('whatsapp.save_settings', 'WhatsApp API settings saved');
+  } catch (error) { setWhatsAppError(whatsappSettingsMessage, error); }
+}
+async function sendWhatsAppMessage(event) {
+  event.preventDefault();
+  try {
+    const payload = { to: whatsappTo.value.trim(), message: whatsappMessage.value.trim(), preview_url: whatsappPreviewUrl.checked };
+    const data = await adminFetch('/api/admin/whatsapp/send', { method: 'POST', body: JSON.stringify(payload) });
+    whatsappMessage.value = '';
+    if (whatsappSendMessage) whatsappSendMessage.textContent = `Message sent to ${payload.to}.`;
+    pushAudit('whatsapp.send', `Sent WhatsApp message to ${payload.to}`);
+    renderWhatsAppThread(data.messages || []);
+  } catch (error) { setWhatsAppError(whatsappSendMessage, error); }
+}
+function renderWhatsAppThread(messages) {
+  if (!whatsappThread) return;
+  whatsappThread.innerHTML = messages.length ? messages.map((message) => `<article class="whatsapp-message"><strong>${escapeHtml(message.direction || 'message')} ${escapeHtml(message.from || message.to || '')}</strong><p>${escapeHtml(new Date(message.created_at || Date.now()).toLocaleString())}</p><pre>${escapeHtml(message.body || message.status || JSON.stringify(message, null, 2))}</pre></article>`).join('') : '<article class="whatsapp-message"><strong>No WhatsApp messages yet</strong><p>Sent messages and webhook replies will appear here.</p></article>';
+}
+function setWebhookUrl() {
+  if (whatsappWebhookUrl) whatsappWebhookUrl.textContent = `${window.location.origin}/api/whatsapp/webhook`;
+}
+function setWhatsAppError(target, error) {
+  if (target) target.textContent = error.message || 'WhatsApp request failed.';
+}
 async function adminFetch(path, options = {}) {
   const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}`, ...(options.headers || {}) } });
   const data = await response.json().catch(() => ({}));
@@ -379,27 +446,6 @@ function exportRows(exportRowsValue, name) {
   downloadBlob(csv, `apex-${name}.csv`, 'text/csv;charset=utf-8');
   pushAudit('export.csv', `Exported ${exportRowsValue.length} ${currentType} rows`);
   setMessage(`Exported ${exportRowsValue.length} records.`);
-}
-async function exportBackupSnapshot() {
-  try {
-    const types = Object.keys(tableConfig);
-    const collections = {};
-    for (const type of types) {
-      const data = await adminFetch(`/api/admin/submissions?type=${type}`);
-      collections[type] = data.rows || [];
-    }
-    const snapshot = { exported_at: new Date().toISOString(), manifest: types.map((type) => ({ collection: type, rows: collections[type].length })), site_config: siteConfig, collections };
-    downloadBlob(JSON.stringify(snapshot, null, 2), `apex-backup-${dateStamp()}.json`, 'application/json;charset=utf-8');
-    pushAudit('backup.export_snapshot', `Exported backup with ${types.length} collections`);
-    renderBackupSummary(snapshot);
-  } catch (error) {
-    showAdminError(error);
-  }
-}
-function renderBackupSummary(snapshot) {
-  if (!backupSummary) return;
-  const rowsForCards = snapshot?.manifest || Object.entries(tableConfig).map(([collection]) => ({ collection, rows: collection === currentType ? rows.length : 'ready' }));
-  backupSummary.innerHTML = rowsForCards.map((item) => `<article class="ops-card"><span>${escapeHtml(item.collection)}</span><strong>${escapeHtml(item.rows)}</strong><small>snapshot coverage</small></article>`).join('');
 }
 function openDetailDrawer(id) {
   const row = rows.find((item) => String(item.id) === String(id));
@@ -432,9 +478,7 @@ function pushAudit(action, detail) {
   localStorage.setItem(auditKey, JSON.stringify(rowsValue.slice(0, 80)));
   renderAuditTrail();
 }
-function getAuditRows() {
-  try { return JSON.parse(localStorage.getItem(auditKey) || '[]'); } catch { return []; }
-}
+function getAuditRows() { try { return JSON.parse(localStorage.getItem(auditKey) || '[]'); } catch { return []; } }
 function renderAuditTrail() {
   if (!auditList) return;
   const items = getAuditRows();
@@ -484,6 +528,5 @@ function asArray(value) { return Array.isArray(value) ? value : (value ? [value]
 function parseMoney(value) { const match = String(value || '').match(/\d+/); return match ? Number(match[0]) : 0; }
 function csvCell(value) { const text = Array.isArray(value) ? value.join('; ') : typeof value === 'object' && value ? JSON.stringify(value) : String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
 function downloadBlob(content, filename, type) { const blob = new Blob([content], { type }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
-function dateStamp() { return new Date().toISOString().slice(0, 10); }
 function escapeHtml(value) { return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); }
 function escapeAttr(value) { return escapeHtml(value).replaceAll('`', '&#096;'); }
